@@ -1,4 +1,4 @@
-use ethers::{abi::{AbiEncode, AbiDecode}, prelude::*, utils::keccak256};
+use ethers::{prelude::*};
 use std::env;
 use eyre::Result;
 use std::sync::Arc;
@@ -12,7 +12,7 @@ abigen!(
 
 pub type BlockchainClient = Arc<SignerMiddleware<Provider::<Ws>, LocalWallet>>;
 
-const COW_ANYWHERE_ADDRESS: &'static str = "0x5F4bd1b3667127Bf44beBBa9e5d736B65A1677E5";
+const COW_ANYWHERE_ADDRESS: &str = "0x5F4bd1b3667127Bf44beBBa9e5d736B65A1677E5";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         order_uid.remove(0); // 0x
         order_uid.remove(0);
 
-        let call = cow_anywhere.sign_order_uid(hex::decode(order_uid)?.into(), cowanywhere_mod::Data { sell_token: swap_request.from_token, buy_token: swap_request.to_token, receiver: swap_request.receiver, sell_amount: sell_amount, buy_amount: buy_amount_with_fee_after_slippage, valid_to: valid_to.try_into()?, app_data: hex::decode("2B8694ED30082129598720860E8E972F07AA10D9B81CAE16CA0E2CFB24743E24")?[0..32].try_into().unwrap(), fee_amount: quote.fee_amount, kind: str_to_bytes32("f3b277728b3fee749481eb3e0b3b48980dbbab78658fc419025cb16eee346775"), partially_fillable: false, sell_token_balance: str_to_bytes32("5a28e9363bb942b639270062aa6bb295f434bcdfc42c97267bf003f272060dc9"), buy_token_balance: str_to_bytes32("5a28e9363bb942b639270062aa6bb295f434bcdfc42c97267bf003f272060dc9") }, "0x711d1D8E8B2b468c92c202127A2BBFEFC14bf105".parse::<Address>()?, "0x0000000000000000000000000000000000000000".parse::<Address>()?);
+        let call = cow_anywhere.sign_order_uid(hex::decode(order_uid)?.into(), cowanywhere_mod::Data { sell_token: swap_request.from_token, buy_token: swap_request.to_token, receiver: swap_request.receiver, sell_amount, buy_amount: buy_amount_with_fee_after_slippage, valid_to: valid_to.try_into()?, app_data: hex::decode("2B8694ED30082129598720860E8E972F07AA10D9B81CAE16CA0E2CFB24743E24")?[0..32].try_into().unwrap(), fee_amount: quote.fee_amount, kind: str_to_bytes32("f3b277728b3fee749481eb3e0b3b48980dbbab78658fc419025cb16eee346775"), partially_fillable: false, sell_token_balance: str_to_bytes32("5a28e9363bb942b639270062aa6bb295f434bcdfc42c97267bf003f272060dc9"), buy_token_balance: str_to_bytes32("5a28e9363bb942b639270062aa6bb295f434bcdfc42c97267bf003f272060dc9") }, "0x711d1D8E8B2b468c92c202127A2BBFEFC14bf105".parse::<Address>()?, "0x0000000000000000000000000000000000000000".parse::<Address>()?);
 
         println!("{:?}", call.calldata().unwrap());
 
