@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cow-order-execution-bot-deployment
+  labels:
+    app: cow-order-execution-bot 
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cow-order-execution-bot 
+  template:
+    metadata:
+      labels:
+        app: cow-order-execution-bot 
+    spec:
+      containers:
+      - name: cow-order-execution-bot
+        image: charlesdalton/cow-order-execution-bot:latest
+        env:
+            - name: KEEPER_PRIVATE_KEY 
+              valueFrom:
+                secretKeyRef:
+                  name: keeper-private-key-secret 
+                  key: KEEPER_PRIVATE_KEY 
+            - name: INFURA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: infura-key
+                  key: INFURA_API_KEY
