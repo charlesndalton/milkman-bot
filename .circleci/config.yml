@@ -1,0 +1,34 @@
+version: 2.1
+
+# Define a job to be invoked later in a workflow.
+# See: https://circleci.com/docs/2.0/configuration-reference/#jobs
+jobs:
+  build:
+    # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
+    # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
+    docker:
+      - image: cimg/base:stable
+    # Add steps to the job
+    # See: https://circleci.com/docs/2.0/configuration-reference/#steps
+    steps:
+      - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run: "docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD"
+      - run:
+          name: "Build image"
+          command: "docker build . -t charlesdalton/cow-order-execution-bot:latest"
+      - run:
+          name: "Push image to DockerHub"
+          command: "docker push charlesdalton/cow-order-execution-bot:latest"
+
+# Invoke jobs via workflows
+# See: https://circleci.com/docs/2.0/configuration-reference/#workflows
+workflows:
+  build-workflow:
+    jobs:
+      - build:
+          context:
+            - "Docker Hub"
