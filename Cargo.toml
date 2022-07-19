@@ -8,7 +8,7 @@ name = "cow-order-execution-bot"
 path = "src/main.rs"
 
 [dependencies]
-ethers = { git = "https://github.com/gakonst/ethers-rs", features = ["ws", "rustls"] }
+ethers = { version = "0.14.0", features = ["ws", "rustls"] }
 reqwest = { version = "0.11", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 eyre = { version = "0.6" }
