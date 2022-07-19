@@ -37,6 +37,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .from_block(starting_block_number);
     let mut stream = filter.subscribe().await?;
 
+    println!("Bot starting!");
+
     while let Some(swap_request) = stream.next().await {
         let swap_request = swap_request?;
         let quote = get_fee_and_quote(
@@ -71,11 +73,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 sell_amount,
                 buy_amount: buy_amount_with_fee_after_slippage,
                 valid_to: valid_to.try_into()?,
-                app_data: hex::decode(
+                app_data: str_to_bytes32(
                     "2B8694ED30082129598720860E8E972F07AA10D9B81CAE16CA0E2CFB24743E24",
-                )?[0..32]
-                    .try_into()
-                    .unwrap(),
+                ),
                 fee_amount: quote.fee_amount,
                 kind: str_to_bytes32(
                     "f3b277728b3fee749481eb3e0b3b48980dbbab78658fc419025cb16eee346775",
@@ -88,7 +88,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "5a28e9363bb942b639270062aa6bb295f434bcdfc42c97267bf003f272060dc9",
                 ),
             },
-            "0x711d1D8E8B2b468c92c202127A2BBFEFC14bf105".parse::<Address>()?,
+            swap_request.user,
             "0x0000000000000000000000000000000000000000".parse::<Address>()?,
         );
 
@@ -130,7 +130,7 @@ async fn get_latest_block(client: BlockchainClient) -> Result<Block<H256>> {
 }
 
 #[derive(Debug)]
-struct FeeAndQuote {
+pub struct FeeAndQuote {
     fee_amount: U256,
     buy_amount_after_fee: U256,
 }
