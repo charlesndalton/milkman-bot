@@ -21,8 +21,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let starting_block_number =
         env::var("STARTING_BLOCK_NUMBER").expect("STARTING_BLOCK_NUMBER not set");
 
-    println!("PRIVATE KEY: {}", keeper_private_key);
-
     let client = get_blockchain_client(&infura_api_key, &keeper_private_key).await?;
 
     let starting_block_number = starting_block_number
