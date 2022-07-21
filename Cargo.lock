@@ -878,8 +878,9 @@ dependencies = [
 
 [[package]]
 name = "ethers"
-version = "0.13.0"
-source = "git+https://github.com/gakonst/ethers-rs#ef8d97e05e08ce976735a6f04383eaade0079f2d"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f282c915dcf1b4ac33fd09d5d3d09df25a83eadb90786f7dea642155c14e8525"
 dependencies = [
  "ethers-addressbook",
  "ethers-contract",
@@ -893,8 +894,9 @@ dependencies = [
 
 [[package]]
 name = "ethers-addressbook"
-version = "0.13.0"
-source = "git+https://github.com/gakonst/ethers-rs#ef8d97e05e08ce976735a6f04383eaade0079f2d"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bcd6ac50b134d2518e9dc8e6780d0a5a84398027d165be41ab0d18c3b6c47ee8"
 dependencies = [
  "ethers-core",
  "once_cell",
@@ -904,8 +906,9 @@ dependencies = [
 
 [[package]]
 name = "ethers-contract"
-version = "0.13.0"
-source = "git+https://github.com/gakonst/ethers-rs#ef8d97e05e08ce976735a6f04383eaade0079f2d"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "294c6ae5cca7761b1d96493d28b3137ee1d6bd05479a2c7d1bcbae690f0a535c"
 dependencies = [
  "ethers-contract-abigen",
  "ethers-contract-derive",
@@ -922,8 +925,9 @@ dependencies = [
 
 [[package]]
 name = "ethers-contract-abigen"
-version = "0.13.0"
-source = "git+https://github.com/gakonst/ethers-rs#ef8d97e05e08ce976735a6f04383eaade0079f2d"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f44f04defa50b36194fed7f4220d948bd7462d31aa2c692557d35b53bf91c55"
 dependencies = [
  "Inflector",
  "cfg-if",
@@ -944,8 +948,9 @@ dependencies = [
 
 [[package]]
 name = "ethers-contract-derive"
-version = "0.13.0"
-source = "git+https://github.com/gakonst/ethers-rs#ef8d97e05e08ce976735a6f04383eaade0079f2d"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f6d5666a8163dea298e77ea5b939dfe1aee88587c7768a45380d658a9509418"
 dependencies = [
  "ethers-contract-abigen",
  "ethers-core",
@@ -958,8 +963,9 @@ dependencies = [
 
 [[package]]
 name = "ethers-core"
-version = "0.13.0"
-source = "git+https://github.com/gakonst/ethers-rs#ef8d97e05e08ce976735a6f04383eaade0079f2d"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a72d8436f342d28a05498216f0aebf06a822d8d895e1f961d10b35f43a58aedd"
 dependencies = [
  "arrayvec",
  "bytes",
@@ -989,8 +995,9 @@ dependencies = [
 
 [[package]]
 name = "ethers-etherscan"
-version = "0.13.0"
-source = "git+https://github.com/gakonst/ethers-rs#ef8d97e05e08ce976735a6f04383eaade0079f2d"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c535c006770480ae6ceabb67cd7f2bf95388c5b0651a97d571667fe70b9a46f"
 dependencies = [
  "ethers-core",
  "getrandom",
@@ -1005,8 +1012,9 @@ dependencies = [
 
 [[package]]
 name = "ethers-middleware"
-version = "0.13.0"
-source = "git+https://github.com/gakonst/ethers-rs#ef8d97e05e08ce976735a6f04383eaade0079f2d"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "27afb3a6a39c12ad30a80861d0db7f0b8cbc24e4793c401977a64045ee278df2"
 dependencies = [
  "async-trait",
  "ethers-contract",
@@ -1029,8 +1037,9 @@ dependencies = [
 
 [[package]]
 name = "ethers-providers"
-version = "0.13.0"
-source = "git+https://github.com/gakonst/ethers-rs#ef8d97e05e08ce976735a6f04383eaade0079f2d"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b52ae23dcb3734c8f578ac934262ca017fc0bcdfedf01e80b398be6ccb30a3f"
 dependencies = [
  "async-trait",
  "auto_impl",
@@ -1065,8 +1074,9 @@ dependencies = [
 
 [[package]]
 name = "ethers-signers"
-version = "0.13.0"
-source = "git+https://github.com/gakonst/ethers-rs#ef8d97e05e08ce976735a6f04383eaade0079f2d"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09a29d391f3e39b97a960f3f7c8372659e3121594983a5b279307acdb69dabe0"
 dependencies = [
  "async-trait",
  "coins-bip32",
@@ -1082,8 +1092,9 @@ dependencies = [
 
 [[package]]
 name = "ethers-solc"
-version = "0.13.0"
-source = "git+https://github.com/gakonst/ethers-rs#ef8d97e05e08ce976735a6f04383eaade0079f2d"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00a43b9540f475d839f9998e09ac59ea4797161953a3614d801bded58a935468"
 dependencies = [
  "cfg-if",
  "colored",

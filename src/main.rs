@@ -40,62 +40,74 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Bot starting!");
 
     while let Some(swap_request) = stream.next().await {
-        let swap_request = swap_request?;
-        let quote = get_fee_and_quote(
-            swap_request.from_token,
-            swap_request.to_token,
-            swap_request.amount_in,
-        )
-        .await?;
-        println!("QUOTE: {:?}", quote);
-        let sell_amount = swap_request.amount_in - quote.fee_amount;
-        let buy_amount_with_fee_after_slippage = quote.buy_amount_after_fee * 995 / 1000; // allows 0.5% slippage
-        let valid_to = get_current_timestamp(Arc::clone(&client)).await? + 60 * 60 * 24; // 1 day expiry
-        let mut order_uid = create_order(
-            swap_request.from_token,
-            swap_request.to_token,
-            sell_amount,
-            buy_amount_with_fee_after_slippage,
-            valid_to,
-            quote.fee_amount,
-            swap_request.receiver,
-        )
-        .await?;
-        order_uid.remove(0); // 0x
-        order_uid.remove(0);
-
-        let call = cow_anywhere.sign_order_uid(
-            hex::decode(order_uid)?.into(),
-            cowanywhere_mod::Data {
-                sell_token: swap_request.from_token,
-                buy_token: swap_request.to_token,
-                receiver: swap_request.receiver,
-                sell_amount,
-                buy_amount: buy_amount_with_fee_after_slippage,
-                valid_to: valid_to.try_into()?,
-                app_data: str_to_bytes32(
-                    "2B8694ED30082129598720860E8E972F07AA10D9B81CAE16CA0E2CFB24743E24",
-                ),
-                fee_amount: quote.fee_amount,
-                kind: str_to_bytes32(
-                    "f3b277728b3fee749481eb3e0b3b48980dbbab78658fc419025cb16eee346775",
-                ),
-                partially_fillable: false,
-                sell_token_balance: str_to_bytes32(
-                    "5a28e9363bb942b639270062aa6bb295f434bcdfc42c97267bf003f272060dc9",
-                ),
-                buy_token_balance: str_to_bytes32(
-                    "5a28e9363bb942b639270062aa6bb295f434bcdfc42c97267bf003f272060dc9",
-                ),
-            },
-            swap_request.user,
-            "0x0000000000000000000000000000000000000000".parse::<Address>()?,
-        );
-
-        println!("{:?}", call.calldata().unwrap());
-
-        let _receipt = call.send().await?.await?;
+        match try_handle_swap_request(swap_request?, &cow_anywhere, Arc::clone(&client)).await {
+            Ok(()) => println!("Swap request handled!"),
+            Err(err) => println!("Swap request failed with err {:?}", err),
+        }
     }
+
+    Ok(())
+}
+
+async fn try_handle_swap_request(
+    swap_request: SwapRequestedFilter,
+    cow_anywhere: &CowAnywhere<SignerMiddleware<Provider<Ws>, LocalWallet>>,
+    client: BlockchainClient
+) -> Result<()> {
+    let quote = get_fee_and_quote(
+        swap_request.from_token,
+        swap_request.to_token,
+        swap_request.amount_in,
+    )
+    .await?;
+    println!("QUOTE: {:?}", quote);
+    let sell_amount = swap_request.amount_in - quote.fee_amount;
+    let buy_amount_with_fee_after_slippage = quote.buy_amount_after_fee * 995 / 1000; // allows 0.5% slippage
+    let valid_to = get_current_timestamp(Arc::clone(&client)).await? + 60 * 60 * 24; // 1 day expiry
+    let mut order_uid = create_order(
+        swap_request.from_token,
+        swap_request.to_token,
+        sell_amount,
+        buy_amount_with_fee_after_slippage,
+        valid_to,
+        quote.fee_amount,
+        swap_request.receiver,
+    )
+    .await?;
+    order_uid.remove(0); // 0x
+    order_uid.remove(0);
+
+    let call = cow_anywhere.sign_order_uid(
+        hex::decode(order_uid)?.into(),
+        cowanywhere_mod::Data {
+            sell_token: swap_request.from_token,
+            buy_token: swap_request.to_token,
+            receiver: swap_request.receiver,
+            sell_amount,
+            buy_amount: buy_amount_with_fee_after_slippage,
+            valid_to: valid_to.try_into()?,
+            app_data: str_to_bytes32(
+                "2B8694ED30082129598720860E8E972F07AA10D9B81CAE16CA0E2CFB24743E24",
+            ),
+            fee_amount: quote.fee_amount,
+            kind: str_to_bytes32(
+                "f3b277728b3fee749481eb3e0b3b48980dbbab78658fc419025cb16eee346775",
+            ),
+            partially_fillable: false,
+            sell_token_balance: str_to_bytes32(
+                "5a28e9363bb942b639270062aa6bb295f434bcdfc42c97267bf003f272060dc9",
+            ),
+            buy_token_balance: str_to_bytes32(
+                "5a28e9363bb942b639270062aa6bb295f434bcdfc42c97267bf003f272060dc9",
+            ),
+        },
+        swap_request.user,
+        "0x0000000000000000000000000000000000000000".parse::<Address>()?,
+    );
+
+    println!("{:?}", call.calldata().unwrap());
+
+    let _receipt = call.send().await?.await?;
 
     Ok(())
 }
