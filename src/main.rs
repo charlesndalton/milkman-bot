@@ -12,7 +12,7 @@ abigen!(
 
 pub type BlockchainClient = Arc<SignerMiddleware<Provider<Ws>, LocalWallet>>;
 
-const COW_ANYWHERE_ADDRESS: &str = "0x5F4bd1b3667127Bf44beBBa9e5d736B65A1677E5";
+const COW_ANYWHERE_ADDRESS: &str = "0x2aA7Ff04460cdDc61a2b466c9a2924603863a030";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -103,6 +103,7 @@ async fn try_handle_swap_request(
         },
         swap_request.user,
         "0x0000000000000000000000000000000000000000".parse::<Address>()?,
+        swap_request.nonce,
     );
 
     println!("{:?}", call.calldata().unwrap());
@@ -198,8 +199,8 @@ async fn create_order(
             "kind": "sell",
             "partiallyFillable": false,
             "receiver": address_to_string(receiver),
-            "signature": "0x5F4bd1b3667127Bf44beBBa9e5d736B65A1677E5",
-            "from": "0x5F4bd1b3667127Bf44beBBa9e5d736B65A1677E5",
+            "signature": COW_ANYWHERE_ADDRESS,
+            "from": COW_ANYWHERE_ADDRESS,
             "sellTokenBalance": "erc20",
             "buyTokenBalance": "erc20",
             "signingScheme": "presign"
