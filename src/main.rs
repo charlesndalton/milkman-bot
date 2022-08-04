@@ -12,7 +12,7 @@ abigen!(
 
 pub type BlockchainClient = Arc<SignerMiddleware<Provider<Ws>, LocalWallet>>;
 
-const COW_ANYWHERE_ADDRESS: &str = "0x2aA7Ff04460cdDc61a2b466c9a2924603863a030";
+const COW_ANYWHERE_ADDRESS: &str = "0x9d763Cca6A8551283478CeC44071d72Ec3FD58Cb";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -35,6 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let filter = cow_anywhere
         .swap_requested_filter()
         .from_block(starting_block_number);
+        
     let mut stream = filter.subscribe().await?;
 
     println!("Bot starting!");
@@ -52,7 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn try_handle_swap_request(
     swap_request: SwapRequestedFilter,
     cow_anywhere: &CowAnywhere<SignerMiddleware<Provider<Ws>, LocalWallet>>,
-    client: BlockchainClient
+    client: BlockchainClient,
 ) -> Result<()> {
     let quote = get_fee_and_quote(
         swap_request.from_token,
@@ -62,7 +63,7 @@ async fn try_handle_swap_request(
     .await?;
     println!("QUOTE: {:?}", quote);
     let sell_amount = swap_request.amount_in - quote.fee_amount;
-    let buy_amount_with_fee_after_slippage = quote.buy_amount_after_fee * 995 / 1000; // allows 0.5% slippage
+    let buy_amount_with_fee_after_slippage = quote.buy_amount_after_fee * 970 / 1000; // allows 0.5% slippage
     let valid_to = get_current_timestamp(Arc::clone(&client)).await? + 60 * 60 * 24; // 1 day expiry
     let mut order_uid = create_order(
         swap_request.from_token,
@@ -77,8 +78,7 @@ async fn try_handle_swap_request(
     order_uid.remove(0); // 0x
     order_uid.remove(0);
 
-    let call = cow_anywhere.sign_order_uid(
-        hex::decode(order_uid)?.into(),
+    let call = cow_anywhere.pair_swap(
         cowanywhere_mod::Data {
             sell_token: swap_request.from_token,
             buy_token: swap_request.to_token,
