@@ -1,223 +1,210 @@
-use ethers::prelude::*;
-use eyre::{eyre, Result};
-use serde_json::Value;
-use std::env;
-use std::sync::Arc;
+use ethers::providers::StreamExt;
+use ethers::{
+    providers::Middleware,
+    types::{Address, Filter},
+};
 
-abigen!(
-    CowAnywhere,
-    "./src/abis/CowAnywhere.json",
-    event_derives(serde::Deserialize, serde::Serialize)
-);
+use anyhow::Result;
+use log::{debug, error, info};
+use std::{
+    collections::VecDeque,
+    ops::Deref,
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
+};
 
-pub type BlockchainClient = Arc<SignerMiddleware<Provider<Ws>, LocalWallet>>;
+mod environment;
+use crate::environment::Environment;
 
-const COW_ANYWHERE_ADDRESS: &str = "0x9d763Cca6A8551283478CeC44071d72Ec3FD58Cb";
+mod swap;
+use crate::swap::{Swap, SwapState};
 
+mod ethereum_client;
+use crate::ethereum_client::*;
+
+mod cow_api_client;
+use crate::cow_api_client::*;
+
+pub type SwapQueue = Arc<Mutex<VecDeque<Swap>>>;
+
+pub const MILKMAN_ADDRESS: &str = "0x9d763Cca6A8551283478CeC44071d72Ec3FD58Cb";
+
+// use crate::blockchain_client
+
+/// Wait for requested swaps, pair those swaps, and unpair and re-pair swaps that
+/// don't get executed.
+///
+/// The bot is split into three threads of execution:
+/// - wait for requested swaps and enqueue them on the `requested_swap_queue`
+/// - dequeue requested swaps from the `requested_swap_queue,` execute them,
+///   and push them to the `awaiting_finalization_swap_queue`
+/// - dequeue swaps from the `awaiting_finalization_swap_queue`, check if they
+///   have been executed, and either:
+///     - if executed, delete them from the `awaitingFinalizationSwapQueue`
+///     - if not executed, unpair them and enqueue them to the `requestedSwapQueue`
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let infura_api_key = env::var("INFURA_API_KEY").expect("INFURA_API_KEY not set");
-    let keeper_private_key = env::var("KEEPER_PRIVATE_KEY").expect("KEEPER_PRIVATE_KEY not set");
-    let starting_block_number =
-        env::var("STARTING_BLOCK_NUMBER").expect("STARTING_BLOCK_NUMBER not set");
+async fn main() {
+    env_logger::init();
 
-    let client = get_blockchain_client(&infura_api_key, &keeper_private_key).await?;
+    info!("=== MILKMAN BOT STARTING ===");
 
-    let starting_block_number = starting_block_number
-        .parse::<u64>()
-        .unwrap_or(get_latest_block_number(Arc::clone(&client)).await?);
+    let env = Arc::new(Environment::collect().expect("failed to collect environment"));
 
-    let cow_anywhere = CowAnywhere::new(
-        COW_ANYWHERE_ADDRESS.parse::<Address>()?,
-        Arc::clone(&client),
-    );
+    let requested_swap_queue = Arc::new(Mutex::new(VecDeque::<Swap>::new()));
+    let awaiting_finalization_swap_queue = Arc::new(Mutex::new(VecDeque::<Swap>::new()));
 
-    let filter = cow_anywhere
+    let mut handles = Vec::new();
+
+    let thread_env = Arc::clone(&env);
+    let thread_requested_swap_queue = Arc::clone(&requested_swap_queue);
+    handles.push(tokio::task::spawn(async move {
+        enqueue_requested_swaps(thread_env, thread_requested_swap_queue)
+            .await
+            .expect("failed to enqueue requested swaps");
+    }));
+
+    let thread_env = Arc::clone(&env);
+    let thread_requested_swap_queue = Arc::clone(&requested_swap_queue);
+    let thread_awaiting_finalization_swap_queue = Arc::clone(&awaiting_finalization_swap_queue);
+    handles.push(tokio::task::spawn(async move {
+        execute_requested_swaps(
+            thread_env,
+            thread_requested_swap_queue,
+            thread_awaiting_finalization_swap_queue,
+        )
+        .await
+        .expect("failed to execute requested swaps");
+    }));
+
+    let thread_env = Arc::clone(&env);
+    handles.push(tokio::task::spawn(async move {
+        finalize_swaps(thread_env)
+            .await
+            .expect("failed to finalize swaps");
+    }));
+
+    for handle in handles {
+        handle.await.expect("thread threw error");
+    }
+}
+
+async fn enqueue_requested_swaps(
+    env: Arc<Environment>,
+    requested_swap_queue: SwapQueue,
+) -> Result<()> {
+    let current_block_number = env
+        .starting_block_number
+        .unwrap_or(ethereum_client::get_latest_block_number(Arc::clone(&env)).await?);
+
+    let milkman = get_milkman(Arc::clone(&env)).await?;
+
+    let swap_requested_filter = milkman
         .swap_requested_filter()
-        .from_block(starting_block_number);
-        
-    let mut stream = filter.subscribe().await?;
+        .from_block(current_block_number);
 
-    println!("Bot starting!");
+    let mut swap_requested_stream = swap_requested_filter.stream().await?;
 
-    while let Some(swap_request) = stream.next().await {
-        match try_handle_swap_request(swap_request?, &cow_anywhere, Arc::clone(&client)).await {
-            Ok(()) => println!("Swap request handled!"),
-            Err(err) => println!("Swap request failed with err {:?}", err),
+    while let Some(swap_request) = swap_requested_stream.next().await {
+        let swap_request = swap_request?;
+        info!("swap request - {:?}", swap_request);
+
+        push_swap_to_queue(Swap {
+            swap_id: swap_request.swap_id,
+            user: swap_request.user,
+            receiver: swap_request.receiver,
+            from_token: swap_request.from_token,
+            to_token: swap_request.to_token,
+            amount_in: swap_request.amount_in,
+            price_checker: swap_request.price_checker,
+            nonce: swap_request.nonce,
+            swap_state: SwapState::Requested,
+        }, &requested_swap_queue);
+    }
+
+    Ok(())
+}
+
+async fn execute_requested_swaps(
+    env: Arc<Environment>,
+    requested_swap_queue: SwapQueue,
+    awaiting_finalization_swap_queue: SwapQueue,
+) -> Result<()> {
+    async fn pair_swap(swap_request: &Swap, env: Arc<Environment>) -> Result<()> {
+        let fee_and_quote = cow_api_client::get_fee_and_quote(
+            swap_request.from_token,
+            swap_request.to_token,
+            swap_request.amount_in,
+        )
+        .await?;
+
+        info!("retrieved quote – {:?}", fee_and_quote);
+
+        // TODO: make slippage configurable
+        let buy_amount_with_fee_after_slippage = fee_and_quote.buy_amount_after_fee * 99 / 100;
+
+        let valid_to =
+            ethereum_client::get_current_timestamp(Arc::clone(&env)).await? + 60 * 60 * 24; // 1 day expiry
+
+        let sell_amount = swap_request.amount_in - fee_and_quote.fee_amount;
+
+        let order_uid = cow_api_client::create_order(
+            swap_request.from_token,
+            swap_request.to_token,
+            sell_amount,
+            buy_amount_with_fee_after_slippage,
+            valid_to,
+            fee_and_quote.fee_amount,
+            swap_request.receiver,
+        )
+        .await?;
+
+        info!("created order, UID = {:?}", order_uid);
+
+        ethereum_client::pair_swap(
+            swap_request,
+            &fee_and_quote,
+            valid_to,
+            buy_amount_with_fee_after_slippage,
+            Arc::clone(&env),
+        ).await?;
+
+        Ok(())
+    }
+
+    loop {
+        thread::sleep(Duration::from_secs(5));
+
+        while let Some(swap_request) = pop_front_from_queue(&requested_swap_queue) {
+            info!("dequeued swap request with ID – {:?}", swap_request.swap_id);
+
+            match pair_swap(&swap_request, Arc::clone(&env)).await {
+                Ok(_) => { 
+                    info!("successfully paired swap request with ID - {:?}", swap_request.swap_id); 
+                    push_swap_to_queue(swap_request, &awaiting_finalization_swap_queue);
+                },
+                Err(err) => {
+                    error!("could not successfully pair swap with ID - {:?}", swap_request.swap_id);
+                    push_swap_to_queue(swap_request, &requested_swap_queue);
+                }
+            }
         }
     }
 
     Ok(())
 }
 
-async fn try_handle_swap_request(
-    swap_request: SwapRequestedFilter,
-    cow_anywhere: &CowAnywhere<SignerMiddleware<Provider<Ws>, LocalWallet>>,
-    client: BlockchainClient,
-) -> Result<()> {
-    let quote = get_fee_and_quote(
-        swap_request.from_token,
-        swap_request.to_token,
-        swap_request.amount_in,
-    )
-    .await?;
-    println!("QUOTE: {:?}", quote);
-    let sell_amount = swap_request.amount_in - quote.fee_amount;
-    let buy_amount_with_fee_after_slippage = quote.buy_amount_after_fee * 970 / 1000; // allows 0.5% slippage
-    let valid_to = get_current_timestamp(Arc::clone(&client)).await? + 60 * 60 * 24; // 1 day expiry
-    let mut order_uid = create_order(
-        swap_request.from_token,
-        swap_request.to_token,
-        sell_amount,
-        buy_amount_with_fee_after_slippage,
-        valid_to,
-        quote.fee_amount,
-        swap_request.receiver,
-    )
-    .await?;
-    order_uid.remove(0); // 0x
-    order_uid.remove(0);
-
-    let call = cow_anywhere.pair_swap(
-        cowanywhere_mod::Data {
-            sell_token: swap_request.from_token,
-            buy_token: swap_request.to_token,
-            receiver: swap_request.receiver,
-            sell_amount,
-            buy_amount: buy_amount_with_fee_after_slippage,
-            valid_to: valid_to.try_into()?,
-            app_data: str_to_bytes32(
-                "2B8694ED30082129598720860E8E972F07AA10D9B81CAE16CA0E2CFB24743E24",
-            ),
-            fee_amount: quote.fee_amount,
-            kind: str_to_bytes32(
-                "f3b277728b3fee749481eb3e0b3b48980dbbab78658fc419025cb16eee346775",
-            ),
-            partially_fillable: false,
-            sell_token_balance: str_to_bytes32(
-                "5a28e9363bb942b639270062aa6bb295f434bcdfc42c97267bf003f272060dc9",
-            ),
-            buy_token_balance: str_to_bytes32(
-                "5a28e9363bb942b639270062aa6bb295f434bcdfc42c97267bf003f272060dc9",
-            ),
-        },
-        swap_request.user,
-        "0x0000000000000000000000000000000000000000".parse::<Address>()?,
-        swap_request.nonce,
-    );
-
-    println!("{:?}", call.calldata().unwrap());
-
-    let _receipt = call.send().await?.await?;
-
+async fn finalize_swaps(env: Arc<Environment>) -> Result<()> {
+    // TODO
     Ok(())
 }
 
-async fn get_blockchain_client(
-    infura_api_key: &str,
-    keeper_private_key: &str,
-) -> Result<BlockchainClient> {
-    let provider =
-        Provider::<Ws>::connect(format!("wss://mainnet.infura.io/ws/v3/{}", infura_api_key))
-            .await?;
-    let wallet: LocalWallet = keeper_private_key.parse()?;
-    let client = SignerMiddleware::new(provider, wallet);
-    Ok(Arc::new(client))
+fn push_swap_to_queue(swap: Swap, queue: &SwapQueue) {
+    let mut mutable_queue = queue.lock().unwrap();
+    mutable_queue.push_back(swap);
 }
 
-async fn get_latest_block_number(client: BlockchainClient) -> Result<u64> {
-    let last_block = get_latest_block(Arc::clone(&client)).await?;
-    Ok(last_block.number.unwrap().try_into().unwrap())
-}
-
-async fn get_current_timestamp(client: BlockchainClient) -> Result<u64> {
-    let last_block = get_latest_block(Arc::clone(&client)).await?;
-    Ok(last_block.timestamp.as_u64())
-}
-
-async fn get_latest_block(client: BlockchainClient) -> Result<Block<H256>> {
-    Ok(client
-        .get_block(BlockNumber::Latest)
-        .await?
-        .ok_or(eyre!("Unable to fetch latest block"))?)
-}
-
-#[derive(Debug)]
-pub struct FeeAndQuote {
-    fee_amount: U256,
-    buy_amount_after_fee: U256,
-}
-
-pub async fn get_fee_and_quote(
-    sell_token: Address,
-    buy_token: Address,
-    sell_amount_before_fee: U256,
-) -> Result<FeeAndQuote> {
-    let client = reqwest::Client::new();
-    println!("{:?}", sell_amount_before_fee.to_string());
-    let res = client
-        .get("https://api.cow.fi/mainnet/api/v1/feeAndQuote/sell")
-        .query(&[("sellToken", address_to_string(sell_token))])
-        .query(&[("buyToken", address_to_string(buy_token))])
-        .query(&[("sellAmountBeforeFee", sell_amount_before_fee.as_u128())])
-        .send()
-        .await?
-        .json::<Value>()
-        .await?;
-
-    println!("{:?}", res);
-
-    let fee_amount = res["fee"]["amount"].as_str().unwrap().to_owned();
-    let buy_amount_after_fee = res["buyAmountAfterFee"].as_str().unwrap().to_owned();
-
-    Ok(FeeAndQuote {
-        fee_amount: fee_amount.parse::<u128>()?.into(),
-        buy_amount_after_fee: buy_amount_after_fee.parse::<u128>()?.into(),
-    })
-}
-
-async fn create_order(
-    sell_token: Address,
-    buy_token: Address,
-    sell_amount: U256,
-    buy_amount: U256,
-    valid_to: u64,
-    fee_amount: U256,
-    receiver: Address,
-) -> Result<String> {
-    let client = reqwest::Client::new();
-    let order_uid = client
-        .post("https://api.cow.fi/mainnet/api/v1/orders")
-        .json(&serde_json::json!({
-            "sellToken": address_to_string(sell_token),
-            "buyToken": address_to_string(buy_token),
-            "sellAmount": sell_amount.to_string(),
-            "buyAmount": buy_amount.to_string(),
-            "validTo": valid_to,
-            "appData": "0x2B8694ED30082129598720860E8E972F07AA10D9B81CAE16CA0E2CFB24743E24",
-            "feeAmount": fee_amount.to_string(),
-            "kind": "sell",
-            "partiallyFillable": false,
-            "receiver": address_to_string(receiver),
-            "signature": COW_ANYWHERE_ADDRESS,
-            "from": COW_ANYWHERE_ADDRESS,
-            "sellTokenBalance": "erc20",
-            "buyTokenBalance": "erc20",
-            "signingScheme": "presign"
-        }))
-        .send()
-        .await?
-        .json::<Value>()
-        .await?;
-    println!("{:?}", order_uid);
-
-    Ok(order_uid.as_str().unwrap().to_owned())
-}
-
-fn address_to_string(address: Address) -> String {
-    "0x".to_owned() + &hex::encode(address.to_fixed_bytes())
-}
-
-fn str_to_bytes32(_str: &str) -> [u8; 32] {
-    hex::decode(_str).unwrap()[0..32].try_into().unwrap()
+fn pop_front_from_queue(queue: &SwapQueue) -> Option<Swap> {
+    let mut mutable_queue = queue.lock().unwrap();
+    mutable_queue.pop_front()
 }
