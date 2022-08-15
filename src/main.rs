@@ -1,14 +1,9 @@
 use ethers::providers::StreamExt;
-use ethers::{
-    providers::Middleware,
-    types::{Address, Filter},
-};
 
 use anyhow::Result;
-use log::{debug, error, info};
+use log::{error, info};
 use std::{
     collections::VecDeque,
-    ops::Deref,
     sync::{Arc, Mutex},
     thread,
     time::Duration,
@@ -21,10 +16,7 @@ mod swap;
 use crate::swap::{Swap, SwapState};
 
 mod ethereum_client;
-use crate::ethereum_client::*;
-
 mod cow_api_client;
-use crate::cow_api_client::*;
 
 pub type SwapQueue = Arc<Mutex<VecDeque<Swap>>>;
 
@@ -97,7 +89,7 @@ async fn enqueue_requested_swaps(
         .starting_block_number
         .unwrap_or(ethereum_client::get_latest_block_number(Arc::clone(&env)).await?);
 
-    let milkman = get_milkman(Arc::clone(&env)).await?;
+    let milkman = ethereum_client::get_milkman(Arc::clone(&env)).await?;
 
     let swap_requested_filter = milkman
         .swap_requested_filter()
@@ -185,16 +177,15 @@ async fn execute_requested_swaps(
                 },
                 Err(err) => {
                     error!("could not successfully pair swap with ID - {:?}", swap_request.swap_id);
+                    error!("ERROR: {:?}", err);
                     push_swap_to_queue(swap_request, &requested_swap_queue);
                 }
             }
         }
     }
-
-    Ok(())
 }
 
-async fn finalize_swaps(env: Arc<Environment>) -> Result<()> {
+async fn finalize_swaps(_env: Arc<Environment>) -> Result<()> {
     // TODO
     Ok(())
 }

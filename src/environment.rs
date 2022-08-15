@@ -34,7 +34,7 @@ fn collect_required_environment_variable(key: &str) -> Result<String> {
 fn collect_optional_environment_variable(key: &str) -> Result<Option<String>> {
     match env::var(key) {
         Ok(value) => Ok(Some(value)),
-        Err(err) => {
+        Err(_) => {
             debug!(
                 "environment variable {} not set but it wasn't required",
                 key

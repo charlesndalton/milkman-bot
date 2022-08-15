@@ -1,10 +1,10 @@
 [package]
-name = "cow-order-execution-bot"
+name = "milkman-bot"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "cow-order-execution-bot"
+name = "milkman-bot"
 path = "src/main.rs"
 
 [dependencies]
