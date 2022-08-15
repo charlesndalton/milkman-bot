@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cow-order-execution-bot-deployment
+  name: milkman-bot-deployment
   labels:
-    app: cow-order-execution-bot 
+    app: milkman-bot 
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: cow-order-execution-bot 
+      app: milkman-bot 
   template:
     metadata:
       labels:
-        app: cow-order-execution-bot 
+        app: milkman-bot 
     spec:
       containers:
-      - name: cow-order-execution-bot
-        image: charlesdalton/cow-order-execution-bot:latest
+      - name: milkman-bot
+        image: charlesdalton/milkman-bot:latest
         env:
             - name: KEEPER_PRIVATE_KEY 
               valueFrom:
