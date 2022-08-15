@@ -8,7 +8,7 @@ name = "milkman-bot"
 path = "src/main.rs"
 
 [profile.release]
-opt-level = 1
+opt-level = 0
 
 [dependencies]
 ethers = { version = "0.14.0", features = ["ws", "rustls"] }
