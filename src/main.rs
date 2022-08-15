@@ -15,8 +15,8 @@ use crate::environment::Environment;
 mod swap;
 use crate::swap::{Swap, SwapState};
 
-mod ethereum_client;
 mod cow_api_client;
+mod ethereum_client;
 
 pub type SwapQueue = Arc<Mutex<VecDeque<Swap>>>;
 
@@ -101,17 +101,20 @@ async fn enqueue_requested_swaps(
         let swap_request = swap_request?;
         info!("swap request - {:?}", swap_request);
 
-        push_swap_to_queue(Swap {
-            swap_id: swap_request.swap_id,
-            user: swap_request.user,
-            receiver: swap_request.receiver,
-            from_token: swap_request.from_token,
-            to_token: swap_request.to_token,
-            amount_in: swap_request.amount_in,
-            price_checker: swap_request.price_checker,
-            nonce: swap_request.nonce,
-            swap_state: SwapState::Requested,
-        }, &requested_swap_queue);
+        push_swap_to_queue(
+            Swap {
+                swap_id: swap_request.swap_id,
+                user: swap_request.user,
+                receiver: swap_request.receiver,
+                from_token: swap_request.from_token,
+                to_token: swap_request.to_token,
+                amount_in: swap_request.amount_in,
+                price_checker: swap_request.price_checker,
+                nonce: swap_request.nonce,
+                swap_state: SwapState::Requested,
+            },
+            &requested_swap_queue,
+        );
     }
 
     Ok(())
@@ -159,7 +162,8 @@ async fn execute_requested_swaps(
             valid_to,
             buy_amount_with_fee_after_slippage,
             Arc::clone(&env),
-        ).await?;
+        )
+        .await?;
 
         Ok(())
     }
@@ -171,12 +175,18 @@ async fn execute_requested_swaps(
             info!("dequeued swap request with ID – {:?}", swap_request.swap_id);
 
             match pair_swap(&swap_request, Arc::clone(&env)).await {
-                Ok(_) => { 
-                    info!("successfully paired swap request with ID - {:?}", swap_request.swap_id); 
+                Ok(_) => {
+                    info!(
+                        "successfully paired swap request with ID - {:?}",
+                        swap_request.swap_id
+                    );
                     push_swap_to_queue(swap_request, &awaiting_finalization_swap_queue);
-                },
+                }
                 Err(err) => {
-                    error!("could not successfully pair swap with ID - {:?}", swap_request.swap_id);
+                    error!(
+                        "could not successfully pair swap with ID - {:?}",
+                        swap_request.swap_id
+                    );
                     error!("ERROR: {:?}", err);
                     push_swap_to_queue(swap_request, &requested_swap_queue);
                 }

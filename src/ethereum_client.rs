@@ -34,33 +34,37 @@ pub async fn pair_swap(
 
     let sell_amount = swap_request.amount_in - fee_and_quote.fee_amount;
 
-    milkman.pair_swap(
-        rawmilkman_mod::Data {
-            sell_token: swap_request.from_token,
-            buy_token: swap_request.to_token,
-            receiver: swap_request.receiver,
-            sell_amount,
-            buy_amount: buy_amount_with_fee_after_slippage,
-            valid_to: valid_to.try_into()?,
-            app_data: str_to_bytes32(
-                "2B8694ED30082129598720860E8E972F07AA10D9B81CAE16CA0E2CFB24743E24",
-            ),
-            fee_amount: fee_and_quote.fee_amount,
-            kind: str_to_bytes32(
-                "f3b277728b3fee749481eb3e0b3b48980dbbab78658fc419025cb16eee346775",
-            ),
-            partially_fillable: false,
-            sell_token_balance: str_to_bytes32(
-                "5a28e9363bb942b639270062aa6bb295f434bcdfc42c97267bf003f272060dc9",
-            ),
-            buy_token_balance: str_to_bytes32(
-                "5a28e9363bb942b639270062aa6bb295f434bcdfc42c97267bf003f272060dc9",
-            ),
-        },
-        swap_request.user,
-        "0x0000000000000000000000000000000000000000".parse::<Address>()?,
-        swap_request.nonce,
-    ).send().await?.await?  ;
+    milkman
+        .pair_swap(
+            rawmilkman_mod::Data {
+                sell_token: swap_request.from_token,
+                buy_token: swap_request.to_token,
+                receiver: swap_request.receiver,
+                sell_amount,
+                buy_amount: buy_amount_with_fee_after_slippage,
+                valid_to: valid_to.try_into()?,
+                app_data: str_to_bytes32(
+                    "2B8694ED30082129598720860E8E972F07AA10D9B81CAE16CA0E2CFB24743E24",
+                ),
+                fee_amount: fee_and_quote.fee_amount,
+                kind: str_to_bytes32(
+                    "f3b277728b3fee749481eb3e0b3b48980dbbab78658fc419025cb16eee346775",
+                ),
+                partially_fillable: false,
+                sell_token_balance: str_to_bytes32(
+                    "5a28e9363bb942b639270062aa6bb295f434bcdfc42c97267bf003f272060dc9",
+                ),
+                buy_token_balance: str_to_bytes32(
+                    "5a28e9363bb942b639270062aa6bb295f434bcdfc42c97267bf003f272060dc9",
+                ),
+            },
+            swap_request.user,
+            "0x0000000000000000000000000000000000000000".parse::<Address>()?,
+            swap_request.nonce,
+        )
+        .send()
+        .await?
+        .await?;
 
     Ok(())
 }
