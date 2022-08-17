@@ -4,15 +4,18 @@ use crate::swap::Swap;
 use crate::MILKMAN_ADDRESS;
 use anyhow::{anyhow, Result};
 use ethers::prelude::*;
+use url::Url;
+
+use ethers_flashbots::*;
 use std::sync::Arc;
 
 abigen!(
     RawMilkman,
-    "etherscan:0x9d763Cca6A8551283478CeC44071d72Ec3FD58Cb", // ethers doesn't allow you to input the address dynamically
+    "./abis/Milkman.json", // ethers doesn't allow you to input the address dynamically
     event_derives(serde::Deserialize, serde::Serialize),
 );
 
-type EthersMiddleware = SignerMiddleware<Provider<Http>, LocalWallet>;
+type EthersMiddleware = SignerMiddleware<FlashbotsMiddleware<Provider<Http>, LocalWallet>, LocalWallet>;
 pub type EthersClient = Arc<EthersMiddleware>;
 
 pub type Milkman = RawMilkman<EthersMiddleware>;
@@ -36,7 +39,7 @@ pub async fn pair_swap(
 
     milkman
         .pair_swap(
-            rawmilkman_mod::Data {
+            raw_milkman::Data {
                 sell_token: swap_request.from_token,
                 buy_token: swap_request.to_token,
                 receiver: swap_request.receiver,
@@ -108,7 +111,14 @@ pub async fn get_ethers_client(
     let infura_url = format!("https://mainnet.infura.io/v3/{}", infura_api_key);
     let provider = Provider::<Http>::try_from(infura_url)?;
     let wallet: LocalWallet = keeper_private_key.parse()?;
-    let client = SignerMiddleware::new(provider, wallet);
+    let client = SignerMiddleware::new(
+        FlashbotsMiddleware::new(
+            provider,
+            Url::parse("https://relay.flashbots.net")?,
+            wallet.clone(),
+        ),
+        wallet,
+    );
     Ok(Arc::new(client))
 }
 

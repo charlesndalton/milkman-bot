@@ -137,7 +137,6 @@ async fn enqueue_requested_swaps(
 
         thread::sleep(Duration::from_secs(60));
     }
-
 }
 
 async fn execute_requested_swaps(

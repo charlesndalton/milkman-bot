@@ -27,14 +27,15 @@ pub async fn get_fee_and_quote(
         .await?
         .error_for_status()?;
 
-    let response_body = response
-        .json::<Value>()
-        .await?;
-    
+    let response_body = response.json::<Value>().await?;
+
     println!("{:?}", response_body);
 
     let fee_amount = response_body["fee"]["amount"].as_str().unwrap().to_owned();
-    let buy_amount_after_fee = response_body["buyAmountAfterFee"].as_str().unwrap().to_owned();
+    let buy_amount_after_fee = response_body["buyAmountAfterFee"]
+        .as_str()
+        .unwrap()
+        .to_owned();
 
     Ok(FeeAndQuote {
         fee_amount: fee_amount.parse::<u128>()?.into(),
