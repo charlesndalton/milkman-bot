@@ -18,20 +18,23 @@ pub async fn get_fee_and_quote(
 ) -> Result<FeeAndQuote> {
     let client = reqwest::Client::new();
 
-    let res = client
+    let response = client
         .get("https://api.cow.fi/mainnet/api/v1/feeAndQuote/sell")
         .query(&[("sellToken", address_to_string(sell_token))])
         .query(&[("buyToken", address_to_string(buy_token))])
         .query(&[("sellAmountBeforeFee", sell_amount_before_fee.as_u128())])
         .send()
         .await?
+        .error_for_status()?;
+
+    let response_body = response
         .json::<Value>()
         .await?;
+    
+    println!("{:?}", response_body);
 
-    println!("{:?}", res);
-
-    let fee_amount = res["fee"]["amount"].as_str().unwrap().to_owned();
-    let buy_amount_after_fee = res["buyAmountAfterFee"].as_str().unwrap().to_owned();
+    let fee_amount = response_body["fee"]["amount"].as_str().unwrap().to_owned();
+    let buy_amount_after_fee = response_body["buyAmountAfterFee"].as_str().unwrap().to_owned();
 
     Ok(FeeAndQuote {
         fee_amount: fee_amount.parse::<u128>()?.into(),

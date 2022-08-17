@@ -1,5 +1,3 @@
-use ethers::providers::StreamExt;
-
 use anyhow::Result;
 use log::{error, info};
 use std::{
@@ -85,7 +83,9 @@ async fn enqueue_requested_swaps(
     env: Arc<Environment>,
     requested_swap_queue: SwapQueue,
 ) -> Result<()> {
-    let current_block_number = env
+    info!("starting to enqueue requested swaps");
+
+    let mut starting_block_number = env
         .starting_block_number
         .unwrap_or(ethereum_client::get_latest_block_number(Arc::clone(&env)).await?);
 
@@ -93,31 +93,51 @@ async fn enqueue_requested_swaps(
 
     let swap_requested_filter = milkman
         .swap_requested_filter()
-        .from_block(current_block_number);
+        .filter
+        .from_block(starting_block_number);
 
-    let mut swap_requested_stream = swap_requested_filter.stream().await?;
+    info!("filter : {:?}", swap_requested_filter);
 
-    while let Some(swap_request) = swap_requested_stream.next().await {
-        let swap_request = swap_request?;
-        info!("swap request - {:?}", swap_request);
+    // let ethers_client =
+    //     ethereum_client::get_ethers_client(&env.infura_api_key, &env.keeper_private_key).await?;
 
-        push_swap_to_queue(
-            Swap {
-                swap_id: swap_request.swap_id,
-                user: swap_request.user,
-                receiver: swap_request.receiver,
-                from_token: swap_request.from_token,
-                to_token: swap_request.to_token,
-                amount_in: swap_request.amount_in,
-                price_checker: swap_request.price_checker,
-                nonce: swap_request.nonce,
-                swap_state: SwapState::Requested,
-            },
-            &requested_swap_queue,
-        );
+    // let mut swap_request_stream = ethers_client.watch(&swap_requested_filter).await?;
+
+    loop {
+        let current_block_number =
+            ethereum_client::get_latest_block_number(Arc::clone(&env)).await?;
+
+        let swap_requests = milkman
+            .swap_requested_filter()
+            .from_block(starting_block_number)
+            .to_block(current_block_number)
+            .query()
+            .await?;
+
+        for swap_request in swap_requests {
+            info!("swap request - {:?}", swap_request);
+
+            push_swap_to_queue(
+                Swap {
+                    swap_id: swap_request.swap_id,
+                    user: swap_request.user,
+                    receiver: swap_request.receiver,
+                    from_token: swap_request.from_token,
+                    to_token: swap_request.to_token,
+                    amount_in: swap_request.amount_in,
+                    price_checker: swap_request.price_checker,
+                    nonce: swap_request.nonce,
+                    swap_state: SwapState::Requested,
+                },
+                &requested_swap_queue,
+            );
+        }
+
+        starting_block_number = current_block_number;
+
+        thread::sleep(Duration::from_secs(60));
     }
 
-    Ok(())
 }
 
 async fn execute_requested_swaps(
@@ -125,6 +145,32 @@ async fn execute_requested_swaps(
     requested_swap_queue: SwapQueue,
     awaiting_finalization_swap_queue: SwapQueue,
 ) -> Result<()> {
+    loop {
+        thread::sleep(Duration::from_secs(10));
+
+        while let Some(swap_request) = pop_front_from_queue(&requested_swap_queue) {
+            info!("dequeued swap request with ID – {:?}", swap_request.swap_id);
+
+            match pair_swap(&swap_request, Arc::clone(&env)).await {
+                Ok(_) => {
+                    info!(
+                        "successfully paired swap request with ID - {:?}",
+                        swap_request.swap_id
+                    );
+                    push_swap_to_queue(swap_request, &awaiting_finalization_swap_queue);
+                }
+                Err(err) => {
+                    error!(
+                        "could not successfully pair swap with ID - {:?}",
+                        swap_request.swap_id
+                    );
+                    error!("ERROR: {:?}", err);
+                    push_swap_to_queue(swap_request, &requested_swap_queue);
+                }
+            }
+        }
+    }
+
     async fn pair_swap(swap_request: &Swap, env: Arc<Environment>) -> Result<()> {
         let fee_and_quote = cow_api_client::get_fee_and_quote(
             swap_request.from_token,
@@ -166,32 +212,6 @@ async fn execute_requested_swaps(
         .await?;
 
         Ok(())
-    }
-
-    loop {
-        thread::sleep(Duration::from_secs(5));
-
-        while let Some(swap_request) = pop_front_from_queue(&requested_swap_queue) {
-            info!("dequeued swap request with ID – {:?}", swap_request.swap_id);
-
-            match pair_swap(&swap_request, Arc::clone(&env)).await {
-                Ok(_) => {
-                    info!(
-                        "successfully paired swap request with ID - {:?}",
-                        swap_request.swap_id
-                    );
-                    push_swap_to_queue(swap_request, &awaiting_finalization_swap_queue);
-                }
-                Err(err) => {
-                    error!(
-                        "could not successfully pair swap with ID - {:?}",
-                        swap_request.swap_id
-                    );
-                    error!("ERROR: {:?}", err);
-                    push_swap_to_queue(swap_request, &requested_swap_queue);
-                }
-            }
-        }
     }
 }
 
