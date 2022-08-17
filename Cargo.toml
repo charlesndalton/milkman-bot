@@ -19,6 +19,6 @@ hex = "0.4.3"
 log = "0.4"
 env_logger = "0.8.4"
 anyhow = "1.0.61"
-ethers = { version = "0.17.0", features = ["abigen"] }
+ethers = { version = "0.17.0", features = ["abigen", "rustls"] }
 ethers-flashbots = "0.10.0"
-url = { version = "2.2.2", default-features = false }
+url = { version = "2.2.2" }

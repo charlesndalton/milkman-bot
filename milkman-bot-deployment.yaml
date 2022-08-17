@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: milkman-bot
-        image: charlesdalton/milkman:latest
+        image: charlesdalton/milkman-bot:latest
         env:
             - name: KEEPER_PRIVATE_KEY 
               valueFrom:
@@ -28,5 +28,3 @@ spec:
                 secretKeyRef:
                   name: infura-key
                   key: INFURA_API_KEY
-            - name: STARTING_BLOCK_NUMBER
-              value: "15343008" # either set to 'current' or a block number where you'd like the bot to start looking for transactions to execute
