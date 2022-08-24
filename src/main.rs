@@ -19,6 +19,7 @@ mod ethereum_client;
 pub type SwapQueue = Arc<Mutex<VecDeque<Swap>>>;
 
 pub const MILKMAN_ADDRESS: &str = "0x9d763Cca6A8551283478CeC44071d72Ec3FD58Cb";
+pub const MILKMAN_STATE_HELPER_ADDRESS: &str = "0xE549Bc5c6023E68d4e5af6AfacC45a0dB67bF01C";
 
 // use crate::blockchain_client
 
@@ -116,6 +117,16 @@ async fn enqueue_requested_swaps(
 
         for swap_request in swap_requests {
             info!("swap request - {:?}", swap_request);
+
+            // disregard dust
+            if swap_request.amount_in.as_u128() < 100 {
+                info!("swap doesn't have enough amount_in");
+                continue;
+            }
+
+            let swap_state = ethereum_client::get_swap_state(&swap_request.swap_id, Arc::clone(&env)).await?;
+
+            info!("swap state: {:?}", swap_state);
 
             push_swap_to_queue(
                 Swap {

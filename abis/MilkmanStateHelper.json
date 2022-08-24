@@ -1,0 +1,34 @@
+[
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "_swapID",
+                "type": "bytes32"
+            }
+        ],
+        "name": "getState",
+        "outputs": [
+            {
+                "internalType": "enum MilkmanStateHelper.SwapState",
+                "name": "",
+                "type": "uint8"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "milkman",
+        "outputs": [
+            {
+                "internalType": "contract IMilkman",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]

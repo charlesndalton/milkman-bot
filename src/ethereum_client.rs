@@ -1,7 +1,7 @@
 use crate::cow_api_client::FeeAndQuote;
 use crate::environment::Environment;
 use crate::swap::Swap;
-use crate::MILKMAN_ADDRESS;
+use crate::{MILKMAN_ADDRESS, MILKMAN_STATE_HELPER_ADDRESS};
 use anyhow::{anyhow, Result};
 use ethers::prelude::*;
 use url::Url;
@@ -15,15 +15,52 @@ abigen!(
     event_derives(serde::Deserialize, serde::Serialize),
 );
 
-type EthersMiddleware = SignerMiddleware<FlashbotsMiddleware<Provider<Http>, LocalWallet>, LocalWallet>;
+abigen!(RawMilkmanStateHelper, "./abis/MilkmanStateHelper.json");
+
+type EthersMiddleware =
+    SignerMiddleware<Provider<Http>, LocalWallet>;
 pub type EthersClient = Arc<EthersMiddleware>;
 
 pub type Milkman = RawMilkman<EthersMiddleware>;
+pub type MilkmanStateHelper = RawMilkmanStateHelper<EthersMiddleware>;
+
+#[derive(Debug)]
+pub enum SwapState {
+    NULL,
+    REQUESTED,
+    PAIRED,
+    PAIRED_AND_UNPAIRABLE,
+    PAIRED_AND_EXECUTED,
+}
 
 pub async fn get_milkman(env: Arc<Environment>) -> Result<Milkman> {
     let client = get_ethers_client(&env.infura_api_key, &env.keeper_private_key).await?;
 
     Ok(RawMilkman::new(MILKMAN_ADDRESS.parse::<Address>()?, client))
+}
+
+pub async fn get_milkman_state_helper(env: Arc<Environment>) -> Result<MilkmanStateHelper> {
+    let client = get_ethers_client(&env.infura_api_key, &env.keeper_private_key).await?;
+
+    Ok(RawMilkmanStateHelper::new(
+        MILKMAN_STATE_HELPER_ADDRESS.parse::<Address>()?,
+        client,
+    ))
+}
+
+pub async fn get_swap_state(swap_id: &[u8; 32], env: Arc<Environment>) -> Result<SwapState> {
+    let state_helper = get_milkman_state_helper(env).await?;
+
+    let raw_swap_state = state_helper.get_state(*swap_id).call().await?;
+
+    Ok(match raw_swap_state {
+        0 => SwapState::NULL,
+        1 => SwapState::REQUESTED,
+        2 => SwapState::PAIRED,
+        3 => SwapState::PAIRED_AND_UNPAIRABLE,
+        4 => SwapState::PAIRED_AND_EXECUTED,
+        _ => panic!("Something is seriously wrong here – swap state should be between 0-4 but contract returned {:?}", raw_swap_state)
+    })
 }
 
 pub async fn pair_swap(
@@ -111,14 +148,15 @@ pub async fn get_ethers_client(
     let infura_url = format!("https://mainnet.infura.io/v3/{}", infura_api_key);
     let provider = Provider::<Http>::try_from(infura_url)?;
     let wallet: LocalWallet = keeper_private_key.parse()?;
-    let client = SignerMiddleware::new(
-        FlashbotsMiddleware::new(
-            provider,
-            Url::parse("https://relay.flashbots.net")?,
-            wallet.clone(),
-        ),
-        wallet,
-    );
+    let client = SignerMiddleware::new(provider, wallet);
+    // let client = SignerMiddleware::new(
+    //     FlashbotsMiddleware::new(
+    //         provider,
+    //         Url::parse("https://relay.flashbots.net")?,
+    //         wallet.clone(),
+    //     ),
+    //     wallet,
+    // );
     Ok(Arc::new(client))
 }
 

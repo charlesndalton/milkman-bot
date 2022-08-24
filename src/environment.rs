@@ -11,6 +11,7 @@ pub struct Environment {
 
 impl Environment {
     pub fn collect() -> Result<Self> {
+        // TODO: add parsing to ensure that env vars are set correctly
         let infura_api_key = collect_required_environment_variable("INFURA_API_KEY")?;
         let keeper_private_key = collect_required_environment_variable("KEEPER_PRIVATE_KEY")?;
         let starting_block_number =
