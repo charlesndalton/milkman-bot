@@ -11,10 +11,11 @@ mod environment;
 use crate::environment::Environment;
 
 mod swap;
-use crate::swap::{Swap, SwapState};
+use crate::swap::Swap;
 
 mod cow_api_client;
 mod ethereum_client;
+use crate::ethereum_client::SwapState;
 
 pub type SwapQueue = Arc<Mutex<VecDeque<Swap>>>;
 
@@ -49,10 +50,15 @@ async fn main() {
 
     let thread_env = Arc::clone(&env);
     let thread_requested_swap_queue = Arc::clone(&requested_swap_queue);
+    let thread_awaiting_finalization_swap_queue = Arc::clone(&awaiting_finalization_swap_queue);
     handles.push(tokio::task::spawn(async move {
-        enqueue_requested_swaps(thread_env, thread_requested_swap_queue)
-            .await
-            .expect("failed to enqueue requested swaps");
+        enqueue_requested_swaps(
+            thread_env,
+            thread_requested_swap_queue,
+            thread_awaiting_finalization_swap_queue,
+        )
+        .await
+        .expect("failed to enqueue requested swaps");
     }));
 
     let thread_env = Arc::clone(&env);
@@ -69,10 +75,16 @@ async fn main() {
     }));
 
     let thread_env = Arc::clone(&env);
+    let thread_requested_swap_queue = Arc::clone(&requested_swap_queue);
+    let thread_awaiting_finalization_swap_queue = Arc::clone(&awaiting_finalization_swap_queue);
     handles.push(tokio::task::spawn(async move {
-        finalize_swaps(thread_env)
-            .await
-            .expect("failed to finalize swaps");
+        finalize_swaps(
+            thread_env,
+            thread_requested_swap_queue,
+            thread_awaiting_finalization_swap_queue,
+        )
+        .await
+        .expect("failed to finalize swaps");
     }));
 
     for handle in handles {
@@ -83,6 +95,7 @@ async fn main() {
 async fn enqueue_requested_swaps(
     env: Arc<Environment>,
     requested_swap_queue: SwapQueue,
+    awaiting_finalization_swap_queue: SwapQueue,
 ) -> Result<()> {
     info!("starting to enqueue requested swaps");
 
@@ -124,9 +137,16 @@ async fn enqueue_requested_swaps(
                 continue;
             }
 
-            let swap_state = ethereum_client::get_swap_state(&swap_request.swap_id, Arc::clone(&env)).await?;
+            let swap_state =
+                ethereum_client::get_swap_state(&swap_request.swap_id, Arc::clone(&env)).await?;
 
             info!("swap state: {:?}", swap_state);
+
+            let queue_to_push_to = if swap_state == SwapState::REQUESTED {
+                &requested_swap_queue
+            } else {
+                &awaiting_finalization_swap_queue
+            };
 
             push_swap_to_queue(
                 Swap {
@@ -138,9 +158,8 @@ async fn enqueue_requested_swaps(
                     amount_in: swap_request.amount_in,
                     price_checker: swap_request.price_checker,
                     nonce: swap_request.nonce,
-                    swap_state: SwapState::Requested,
                 },
-                &requested_swap_queue,
+                queue_to_push_to,
             );
         }
 
@@ -225,9 +244,45 @@ async fn execute_requested_swaps(
     }
 }
 
-async fn finalize_swaps(_env: Arc<Environment>) -> Result<()> {
-    // TODO
-    Ok(())
+async fn finalize_swaps(
+    env: Arc<Environment>,
+    requested_swap_queue: SwapQueue,
+    awaiting_finalization_swap_queue: SwapQueue,
+) -> Result<()> {
+    loop {
+        thread::sleep(Duration::from_secs(120));
+
+        while let Some(swap_request) = pop_front_from_queue(&awaiting_finalization_swap_queue) {
+            info!(
+                "dequeued swap to finalize with ID – {:?}",
+                swap_request.swap_id
+            );
+
+            let swap_state =
+                ethereum_client::get_swap_state(&swap_request.swap_id, Arc::clone(&env)).await?;
+
+            match swap_state {
+                SwapState::PAIRED_AND_EXECUTED => {
+                    info!("swap with ID {:?} has been executed – removing from queue", swap_request.swap_id);
+                }
+                SwapState::PAIRED_AND_UNPAIRABLE => {
+                    info!("swap with ID {:?} is unpairable – unpairing and pushing to requested swap queue", swap_request.swap_id);
+                    ethereum_client::unpair_swap(&swap_request.swap_id, Arc::clone(&env)).await?;
+                    push_swap_to_queue(swap_request, &requested_swap_queue);
+                }
+                SwapState::PAIRED => {
+                    info!(
+                        "swap with ID {:?} is paired but not yet executed – requeing",
+                        swap_request.swap_id
+                    );
+                    push_swap_to_queue(swap_request, &awaiting_finalization_swap_queue);
+                }
+                _ => {
+                    panic!("swap is in a wrong state: {:?}", swap_state);
+                }
+            }
+        }
+    }
 }
 
 fn push_swap_to_queue(swap: Swap, queue: &SwapQueue) {

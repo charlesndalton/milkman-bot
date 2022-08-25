@@ -17,14 +17,13 @@ abigen!(
 
 abigen!(RawMilkmanStateHelper, "./abis/MilkmanStateHelper.json");
 
-type EthersMiddleware =
-    SignerMiddleware<Provider<Http>, LocalWallet>;
+type EthersMiddleware = SignerMiddleware<Provider<Http>, LocalWallet>;
 pub type EthersClient = Arc<EthersMiddleware>;
 
 pub type Milkman = RawMilkman<EthersMiddleware>;
 pub type MilkmanStateHelper = RawMilkmanStateHelper<EthersMiddleware>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum SwapState {
     NULL,
     REQUESTED,
@@ -107,6 +106,22 @@ pub async fn pair_swap(
         .await?;
 
     Ok(())
+}
+
+pub async fn unpair_swap(
+    swap_id: &[u8; 32],
+    env: Arc<Environment>,
+) -> Result<()> {
+    let milkman = get_milkman(Arc::clone(&env)).await?;
+
+    milkman
+        .unpair_swap(*swap_id)
+        .send()
+        .await?
+        .await?;
+
+    Ok(())
+
 }
 
 pub async fn get_latest_block_number(env: Arc<Environment>) -> Result<u64> {
