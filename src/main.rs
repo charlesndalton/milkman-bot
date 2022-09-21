@@ -103,7 +103,11 @@ async fn enqueue_requested_swaps(
         .starting_block_number
         .unwrap_or(ethereum_client::get_latest_block_number(Arc::clone(&env)).await?);
 
+    info!("starting block number : {:?}", starting_block_number);
+
     let milkman = ethereum_client::get_milkman(Arc::clone(&env)).await?;
+
+    info!("got milkman");
 
     let swap_requested_filter = milkman
         .swap_requested_filter()

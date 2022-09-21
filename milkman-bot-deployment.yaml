@@ -28,3 +28,5 @@ spec:
                 secretKeyRef:
                   name: infura-key
                   key: INFURA_API_KEY
+            - name: STARTING_BLOCK_NUMBER
+              value: "15486829"
