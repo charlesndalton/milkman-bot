@@ -16,12 +16,14 @@ COPY . /tmp/milkman-bot
 RUN env CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --target x86_64-unknown-linux-musl --release
 
 
-FROM docker.io/alpine:latest
-
-RUN apk add --no-cache tini
+FROM docker.io/debian:bullseye-slim
 
 COPY --from=cargo-build /tmp/milkman-bot/target/x86_64-unknown-linux-musl/release/milkman-bot /
 WORKDIR /
 
+RUN apt-get update && apt-get install -y ca-certificates tini && apt-get clean
+
 ENV RUST_LOG=INFO
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
 CMD ["./milkman-bot"]
