@@ -9,15 +9,15 @@ COPY Cargo.lock /tmp/milkman-bot
 RUN echo 'fn main() {}' >> /tmp/milkman-bot/dummy.rs
 
 RUN sed -i 's|src/main.rs|dummy.rs|g' Cargo.toml
-RUN env CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --target x86_64-unknown-linux-musl --release
+RUN env CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release
 
 RUN sed -i 's|dummy.rs|src/main.rs|g' Cargo.toml
 COPY . /tmp/milkman-bot
-RUN env CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --target x86_64-unknown-linux-musl --release
+RUN env CARGO_PROFILE_RELEASE_DEBUG=1 cargo build--release
 
 FROM docker.io/alpine:3.15.6
 
-COPY --from=cargo-build /tmp/milkman-bot/target/x86_64-unknown-linux-musl/release/milkman-bot /
+COPY --from=cargo-build /tmp/milkman-bot/target/release/milkman-bot /
 WORKDIR /
 
 ENV RUST_LOG=INFO
