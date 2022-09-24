@@ -14,7 +14,7 @@ RUN env CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release
 
 RUN sed -i 's|dummy.rs|src/main.rs|g' Cargo.toml
 COPY . /tmp/milkman-bot
-RUN env CARGO_PROFILE_RELEASE_DEBUG=1 cargo build--release
+RUN env CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release
 
 FROM docker.io/debian:bullseye-slim
 
