@@ -1,4 +1,4 @@
-FROM docker.io/clux/muslrust:1.59.0 as cargo-build
+FROM docker.io/rust:1.64-alpine3.16 as cargo-build
 
 WORKDIR /tmp/milkman-bot
 COPY Cargo.toml /tmp/milkman-bot
