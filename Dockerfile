@@ -1,4 +1,4 @@
-FROM docker.io/rust:1.64-alpine3.16 as cargo-build
+FROM docker.io/rust:1-slim-bullseye as cargo-build
 
 WORKDIR /tmp/milkman-bot
 RUN apt-get update && apt-get install -y git libssl-dev pkg-config
@@ -16,7 +16,7 @@ RUN sed -i 's|dummy.rs|src/main.rs|g' Cargo.toml
 COPY . /tmp/milkman-bot
 RUN env CARGO_PROFILE_RELEASE_DEBUG=1 cargo build--release
 
-FROM docker.io/alpine:3.15.6
+FROM docker.io/debian:bullseye-slim
 
 COPY --from=cargo-build /tmp/milkman-bot/target/release/milkman-bot /
 WORKDIR /
