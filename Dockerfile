@@ -1,6 +1,7 @@
 FROM docker.io/rust:1.64-alpine3.16 as cargo-build
 
 WORKDIR /tmp/milkman-bot
+RUN apt-get update && apt-get install -y git libssl-dev pkg-config
 COPY Cargo.toml /tmp/milkman-bot
 COPY Cargo.lock /tmp/milkman-bot
 
