@@ -1,4 +1,4 @@
-FROM docker.io/rust:1-slim-bullseye as cargo-build
+FROM docker.io/rust:1.64.0 as cargo-build
 
 WORKDIR /tmp/milkman-bot
 RUN apt-get update && apt-get install -y git libssl-dev pkg-config
@@ -16,13 +16,12 @@ RUN sed -i 's|dummy.rs|src/main.rs|g' Cargo.toml
 COPY . /tmp/milkman-bot
 RUN env CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release
 
-FROM docker.io/debian:bullseye-slim
+FROM docker.io/debian:stable
 
 COPY --from=cargo-build /tmp/milkman-bot/target/release/milkman-bot /
 WORKDIR /
 
-RUN apt-get update
-RUN apt-get install curl -y
+RUN apt-get update && apt-get install -y libssl-dev
 
 ENV RUST_LOG=INFO
 CMD ["./milkman-bot"]
