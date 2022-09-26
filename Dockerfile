@@ -19,6 +19,7 @@ RUN env CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release
 FROM docker.io/debian:stable
 
 COPY --from=cargo-build /tmp/milkman-bot/target/release/milkman-bot /
+COPY --from=cargo-build /tmp/milkman-bot /project/
 WORKDIR /
 
 RUN apt-get update && apt-get install -y libssl-dev
