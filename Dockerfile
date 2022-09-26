@@ -21,5 +21,8 @@ FROM docker.io/debian:bullseye-slim
 COPY --from=cargo-build /tmp/milkman-bot/target/release/milkman-bot /
 WORKDIR /
 
+RUN apt-get update
+RUN apt-get install curl
+
 ENV RUST_LOG=INFO
 CMD ["./milkman-bot"]
