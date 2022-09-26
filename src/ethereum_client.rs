@@ -5,8 +5,8 @@ use crate::{MILKMAN_ADDRESS, MILKMAN_STATE_HELPER_ADDRESS};
 use anyhow::{anyhow, Result};
 use ethers::prelude::*;
 use url::Url;
+use log::{info};
 
-use ethers_flashbots::*;
 use std::sync::Arc;
 
 abigen!(
@@ -33,6 +33,8 @@ pub enum SwapState {
 }
 
 pub async fn get_milkman(env: Arc<Environment>) -> Result<Milkman> {
+    info!("entered get_milkman");
+
     let client = get_ethers_client(&env.infura_api_key, &env.keeper_private_key).await?;
 
     Ok(RawMilkman::new(MILKMAN_ADDRESS.parse::<Address>()?, client))
@@ -140,7 +142,10 @@ pub async fn get_current_timestamp(env: Arc<Environment>) -> Result<u64> {
 }
 
 async fn get_latest_block(env: Arc<Environment>) -> Result<Block<H256>> {
+    info!("entering get_latest_block");
     let client = get_ethers_client(&env.infura_api_key, &env.keeper_private_key).await?;
+
+    info!("got client");
 
     client
         .get_block(BlockNumber::Latest)
@@ -157,6 +162,7 @@ pub async fn get_ethers_client(
     infura_api_key: &str,
     keeper_private_key: &str,
 ) -> Result<EthersClient> {
+    info!("entering get_ethers_client");
     // let provider =
     //     Provider::<Ws>::connect(format!("wss://mainnet.infura.io/ws/v3/{}", infura_api_key))
     //         .await?;
@@ -172,6 +178,8 @@ pub async fn get_ethers_client(
     //     ),
     //     wallet,
     // );
+    info!("leaving get_ethers_client");
+
     Ok(Arc::new(client))
 }
 
