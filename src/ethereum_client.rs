@@ -127,7 +127,11 @@ pub async fn unpair_swap(
 }
 
 pub async fn get_latest_block_number(env: Arc<Environment>) -> Result<u64> {
+    info!("entered get_latest_block_number");
+
     let latest_block = get_latest_block(env).await?;
+
+    info!("got latest block");
 
     latest_block
         .number
