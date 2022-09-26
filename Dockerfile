@@ -22,7 +22,7 @@ COPY --from=cargo-build /tmp/milkman-bot/target/release/milkman-bot /
 WORKDIR /
 
 RUN apt-get update
-RUN apt-get install curl
+RUN apt-get install curl -y
 
 ENV RUST_LOG=INFO
 CMD ["./milkman-bot"]
