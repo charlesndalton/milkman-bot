@@ -4,7 +4,6 @@ use crate::swap::Swap;
 use crate::{MILKMAN_ADDRESS, MILKMAN_STATE_HELPER_ADDRESS};
 use anyhow::{anyhow, Result};
 use ethers::prelude::*;
-use url::Url;
 use log::{info};
 
 use std::sync::Arc;
