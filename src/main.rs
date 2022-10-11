@@ -3,9 +3,9 @@ use log::{error, info};
 use std::{
     collections::VecDeque,
     sync::{Arc, Mutex},
-    thread,
     time::Duration,
 };
+use tokio::time::sleep;
 
 mod environment;
 use crate::environment::Environment;
@@ -169,7 +169,7 @@ async fn enqueue_requested_swaps(
 
         starting_block_number = current_block_number;
 
-        thread::sleep(Duration::from_secs(60));
+        sleep(Duration::from_secs(60)).await;
     }
 }
 
@@ -179,7 +179,7 @@ async fn execute_requested_swaps(
     awaiting_finalization_swap_queue: SwapQueue,
 ) -> Result<()> {
     loop {
-        thread::sleep(Duration::from_secs(10));
+        sleep(Duration::from_secs(10)).await;
 
         while let Some(swap_request) = pop_front_from_queue(&requested_swap_queue) {
             info!("dequeued swap request with ID – {:?}", swap_request.swap_id);
@@ -254,7 +254,7 @@ async fn finalize_swaps(
     awaiting_finalization_swap_queue: SwapQueue,
 ) -> Result<()> {
     loop {
-        thread::sleep(Duration::from_secs(120));
+        sleep(Duration::from_secs(120)).await;
 
         while let Some(swap_request) = pop_front_from_queue(&awaiting_finalization_swap_queue) {
             info!(
