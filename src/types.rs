@@ -11,3 +11,5 @@ pub struct Swap {
     pub price_checker: Address,
     pub nonce: U256,
 }
+
+pub type BlockNumber = u64;
