@@ -14,18 +14,18 @@ abigen!(
 pub type Milkman = RawMilkman<Provider<Http>>;
 
 pub struct EthereumClient {
-    inner_client: Provider<Http>,
+    inner_client: Arc<Provider<Http>>,
     milkman: Milkman,
 }
 
 impl EthereumClient {
     pub fn new(infura_api_key: &str) -> Result<Self> {
         let infura_url = format!("https://mainnet.infura.io/v3/{}", infura_api_key);
-        let provider = Provider::<Http>::try_from(infura_url)?;
+        let provider = Arc::new(Provider::<Http>::try_from(infura_url)?);
 
         Ok(Self {
+            milkman: Milkman::new(MILKMAN_ADDRESS.parse::<Address>()?, Arc::clone(&provider)),
             inner_client: provider,
-            milkman: Milkman::new(MILKMAN_ADDRESS.parse::<Address>()?, Arc::new(provider)),
         })
     }
 
@@ -60,14 +60,14 @@ impl EthereumClient {
 impl From<&SwapRequestedFilter> for Swap {
     fn from(raw_swap_request: &SwapRequestedFilter) -> Self {
         Self {
-            swap_id: raw_swap_request.swap_id,
-            user: raw_swap_request.user,
-            receiver: raw_swap_request.receiver,
+            order_contract: raw_swap_request.order_contract,
+            order_creator: raw_swap_request.order_creator,
+            receiver: raw_swap_request.to,
             from_token: raw_swap_request.from_token,
             to_token: raw_swap_request.to_token,
             amount_in: raw_swap_request.amount_in,
             price_checker: raw_swap_request.price_checker,
-            nonce: raw_swap_request.nonce,
+            price_checker_data: raw_swap_request.price_checker_data.clone(),
         }
     }
 }

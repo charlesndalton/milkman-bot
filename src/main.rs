@@ -10,6 +10,7 @@ mod ethereum_client;
 use crate::ethereum_client::EthereumClient;
 
 mod types;
+use crate::types::Swap;
 
 pub const MILKMAN_ADDRESS: &str = "0x9d763Cca6A8551283478CeC44071d72Ec3FD58Cb";
 
@@ -59,19 +60,23 @@ async fn main() {
             .expect("Unable to get latest block number.");
 
         let requested_swaps = eth_client
-            .get_requested_swaps(range_start, range_end)
+            .get_requested_swaps(range_start, range_end).await
             .expect("Unable to get latest swaps.");
 
         for requested_swap in requested_swaps {
-            swap_queue.insert(requested_swap.swap_id, requested_swap);
+            swap_queue.insert(requested_swap.order_contract, requested_swap);
         }
 
-        for requested_swap in swap_queue {
+        for requested_swap in swap_queue.clone().values() {
             if is_swap_fulfilled(requested_swap) {
-                swap_queue.remove(requested_swap.swap_id);
+                swap_queue.remove(&requested_swap.order_contract);
             } else {
-                cow_api_client::create_order(requested_swap).await;
+                // cow_api_client::create_order(requested_swap).await;
             }
         }
     }
+}
+
+fn is_swap_fulfilled(swap: &Swap) -> bool {
+    true
 }
