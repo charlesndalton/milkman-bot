@@ -5,12 +5,18 @@ use std::env;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Configuration {
     pub infura_api_key: String,
+    pub network: String, // whatever infura accepts as a network e.g., 'mainnet' or 'goerli'
+    pub milkman_address: String,
     pub starting_block_number: Option<u64>,
 }
 
 impl Configuration {
     pub fn get_from_environment() -> Result<Self> {
         let infura_api_key = collect_required_environment_variable("INFURA_API_KEY")?;
+        let network = collect_optional_environment_variable("MILKMAN_NETWORK")?
+            .unwrap_or("mainnet".to_string());
+        let milkman_address = collect_optional_environment_variable("MILKMAN_ADDRESS")?
+            .unwrap_or("0x9d763Cca6A8551283478CeC44071d72Ec3FD58Cb".to_string());
 
         let starting_block_number =
             match collect_optional_environment_variable("STARTING_BLOCK_NUMBER")? {
@@ -20,6 +26,8 @@ impl Configuration {
 
         Ok(Self {
             infura_api_key,
+            network,
+            milkman_address,
             starting_block_number,
         })
     }

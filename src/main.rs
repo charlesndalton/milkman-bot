@@ -12,8 +12,6 @@ use crate::ethereum_client::EthereumClient;
 mod types;
 use crate::types::Swap;
 
-pub const MILKMAN_ADDRESS: &str = "0x9d763Cca6A8551283478CeC44071d72Ec3FD58Cb";
-
 /// Every 15 seconds, do the following:
 /// - check for new Milkman swap requests, and enqueue them into a swap queue
 /// - check if items in the swap queue have already been fulfilled
@@ -32,8 +30,7 @@ async fn main() {
     let config = Configuration::get_from_environment()
         .expect("Unable to get configuration from the environment variables.");
 
-    let eth_client =
-        EthereumClient::new(&config.infura_api_key).expect("Unable to create the Ethereum client.");
+    let eth_client = EthereumClient::new(&config).expect("Unable to create the Ethereum client.");
 
     // During development, I found Infura's WebSockets endpoint to sometimes miss
     // swaps, so we pull in requested swaps by quering through a series of ranges.
@@ -49,21 +46,29 @@ async fn main() {
             .expect("Unable to get latest block number before starting."),
     );
 
+    info!("range start: {}", range_start);
+
     let mut swap_queue = HashMap::new();
 
     loop {
-        sleep(Duration::from_secs(15)).await;
+        sleep(Duration::from_secs(5)).await;
 
         let range_end = eth_client
             .get_latest_block_number()
             .await
             .expect("Unable to get latest block number.");
 
+        info!("range end: {}", range_end);
+
         let requested_swaps = eth_client
-            .get_requested_swaps(range_start, range_end).await
+            .get_requested_swaps(range_start, range_end)
+            .await
             .expect("Unable to get latest swaps.");
 
+        info!("Requested swaps: {:?}", requested_swaps);
+
         for requested_swap in requested_swaps {
+            info!("SWAP: {:?}", requested_swap);
             swap_queue.insert(requested_swap.order_contract, requested_swap);
         }
 
@@ -74,6 +79,8 @@ async fn main() {
                 // cow_api_client::create_order(requested_swap).await;
             }
         }
+
+        range_start = range_end;
     }
 }
 

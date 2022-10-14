@@ -1,11 +1,12 @@
 use crate::types::{BlockNumber, Swap};
-use crate::MILKMAN_ADDRESS;
 use anyhow::{anyhow, Result};
 use ethers::prelude::*;
-use std::convert::{From, Into};
-use std::sync::Arc;
 #[cfg(test)]
 use rand::prelude::*;
+use std::convert::{From, Into};
+use std::sync::Arc;
+
+use crate::configuration::Configuration;
 
 abigen!(
     RawMilkman,
@@ -21,12 +22,18 @@ pub struct EthereumClient {
 }
 
 impl EthereumClient {
-    pub fn new(infura_api_key: &str) -> Result<Self> {
-        let infura_url = format!("https://mainnet.infura.io/v3/{}", infura_api_key);
+    pub fn new(config: &Configuration) -> Result<Self> {
+        let infura_url = format!(
+            "https://{}.infura.io/v3/{}",
+            config.network, config.infura_api_key
+        );
         let provider = Arc::new(Provider::<Http>::try_from(infura_url)?);
 
         Ok(Self {
-            milkman: Milkman::new(MILKMAN_ADDRESS.parse::<Address>()?, Arc::clone(&provider)),
+            milkman: Milkman::new(
+                config.milkman_address.parse::<Address>()?,
+                Arc::clone(&provider),
+            ),
             inner_client: provider,
         })
     }
