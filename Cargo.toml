@@ -21,3 +21,6 @@ env_logger = "0.8.4"
 anyhow = "1.0.61"
 ethers = { git = "https://github.com/gakonst/ethers-rs", features = ["abigen", "openssl"] }
 url = { version = "2.2.2" }
+
+[dev-dependencies]
+rand = { version = "0.8.4", features = ["min_const_gen"] }
