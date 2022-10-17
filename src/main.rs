@@ -9,6 +9,11 @@ use crate::configuration::Configuration;
 mod ethereum_client;
 use crate::ethereum_client::EthereumClient;
 
+mod cow_api_client;
+use crate::cow_api_client::CowAPIClient;
+
+mod encoder;
+
 mod types;
 use crate::types::Swap;
 
@@ -31,6 +36,7 @@ async fn main() {
         .expect("Unable to get configuration from the environment variables.");
 
     let eth_client = EthereumClient::new(&config).expect("Unable to create the Ethereum client.");
+    let cow_api_client = CowAPIClient::new(&config);
 
     // During development, I found Infura's WebSockets endpoint to sometimes miss
     // swaps, so we pull in requested swaps by quering through a series of ranges.
@@ -51,7 +57,7 @@ async fn main() {
     let mut swap_queue = HashMap::new();
 
     loop {
-        sleep(Duration::from_secs(5)).await;
+        sleep(Duration::from_secs(10)).await;
 
         let range_end = eth_client
             .get_latest_block_number()
@@ -73,10 +79,60 @@ async fn main() {
         }
 
         for requested_swap in swap_queue.clone().values() {
-            if is_swap_fulfilled(requested_swap) {
+            if is_swap_fulfilled(requested_swap, &eth_client)
+                .await
+                .expect("Unable to determine if a swap was fulfilled.")
+            {
                 swap_queue.remove(&requested_swap.order_contract);
             } else {
-                // cow_api_client::create_order(requested_swap).await;
+                // TODO: figure out how to `continue` when one of the external calls fails
+                let quote = cow_api_client
+                    .get_fee_and_quote(
+                        requested_swap.from_token,
+                        requested_swap.to_token,
+                        requested_swap.amount_in,
+                    )
+                    .await
+                    .expect("Unable to get quote");
+
+                let sell_amount_after_fees = requested_swap.amount_in - quote.fee_amount;
+                let buy_amount_after_fees_and_slippage = quote.buy_amount_after_fee * 995 / 1000;
+
+                let time = eth_client
+                    .get_chain_timestamp()
+                    .await
+                    .expect("Unable to get chain timestamp.");
+                let valid_to = time + (60 * 60 * 24);
+
+                let eip_1271_signature = encoder::get_eip_1271_signature(
+                    requested_swap.from_token,
+                    requested_swap.to_token,
+                    requested_swap.receiver,
+                    sell_amount_after_fees,
+                    buy_amount_after_fees_and_slippage,
+                    valid_to,
+                    quote.fee_amount,
+                    requested_swap.order_creator,
+                    requested_swap.price_checker,
+                    &requested_swap.price_checker_data,
+                );
+
+                info!("SIGNATURE: {:?}", eip_1271_signature.to_string());
+
+                cow_api_client
+                    .create_order(
+                        requested_swap.order_contract,
+                        requested_swap.from_token,
+                        requested_swap.to_token,
+                        sell_amount_after_fees,
+                        buy_amount_after_fees_and_slippage,
+                        valid_to,
+                        quote.fee_amount,
+                        requested_swap.receiver,
+                        &eip_1271_signature,
+                    )
+                    .await
+                    .expect("Unable to create order via CoW API.");
             }
         }
 
@@ -84,6 +140,10 @@ async fn main() {
     }
 }
 
-fn is_swap_fulfilled(swap: &Swap) -> bool {
-    true
+async fn is_swap_fulfilled(swap: &Swap, eth_client: &EthereumClient) -> Result<bool> {
+    // if all `from` tokens are gone, the swap must have completed
+    Ok(eth_client
+        .get_balance_of(swap.from_token, swap.order_contract)
+        .await?
+        .is_zero())
 }

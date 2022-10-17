@@ -14,7 +14,14 @@ abigen!(
     event_derives(serde::Deserialize, serde::Serialize),
 );
 
+abigen!(
+    RawERC20,
+    "./abis/ERC20.json",
+    event_derives(serde::Deserialize, serde::Serialize),
+);
+
 pub type Milkman = RawMilkman<Provider<Http>>;
+pub type ERC20 = RawERC20<Provider<Http>>;
 
 pub struct EthereumClient {
     inner_client: Arc<Provider<Http>>,
@@ -39,13 +46,22 @@ impl EthereumClient {
     }
 
     pub async fn get_latest_block_number(&self) -> Result<u64> {
-        self.inner_client
-            .get_block(ethers::core::types::BlockNumber::Latest)
+        self.get_latest_block()
             .await?
-            .ok_or(anyhow!("Error fetching latest block."))?
             .number
             .ok_or(anyhow!("Error extracting number from latest block."))
             .map(|block_num: U64| block_num.try_into().unwrap()) // U64 -> u64 should always work
+    }
+
+    pub async fn get_chain_timestamp(&self) -> Result<u64> {
+        Ok(self.get_latest_block().await?.timestamp.as_u64())
+    }
+
+    async fn get_latest_block(&self) -> Result<Block<H256>> {
+        self.inner_client
+            .get_block(ethers::core::types::BlockNumber::Latest)
+            .await?
+            .ok_or(anyhow!("Error fetching latest block."))
     }
 
     pub async fn get_requested_swaps(
@@ -63,6 +79,12 @@ impl EthereumClient {
             .iter()
             .map(Into::into)
             .collect())
+    }
+
+    pub async fn get_balance_of(&self, token_address: Address, user: Address) -> Result<U256> {
+        let token = ERC20::new(token_address, Arc::clone(&self.inner_client));
+
+        Ok(token.balance_of(user).call().await?)
     }
 }
 
