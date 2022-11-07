@@ -33,7 +33,7 @@ async fn main() {
     info!("=== MILKMAN BOT STARTING ===");
 
     let config = Configuration::get_from_environment()
-        .expect("Unable to get configuration from the environment variables.");
+        .expect("Unable to get configuration from the environment variables."); // .expect() because every decision to panic should be conscious, not just triggered by a `?` that we didn't think about
 
     let eth_client = EthereumClient::new(&config).expect("Unable to create the Ethereum client.");
     let cow_api_client = CowAPIClient::new(&config);
@@ -62,14 +62,17 @@ async fn main() {
         let range_end = eth_client
             .get_latest_block_number()
             .await
-            .expect("Unable to get latest block number.");
+            .expect("Unable to get latest block number."); // should we panic here if we can't get it? another option would be continuing in the loop, but then we might not observe that the bot is really `down`
 
         info!("range end: {}", range_end);
 
-        let requested_swaps = eth_client
-            .get_requested_swaps(range_start, range_end)
-            .await
-            .expect("Unable to get latest swaps.");
+        let requested_swaps = match eth_client.get_requested_swaps(range_start, range_end).await {
+            Ok(swaps) => swaps,
+            Err(err) => {
+                error!("unable to get requested swaps – {:?}", err);
+                continue;
+            }
+        };
 
         info!("Requested swaps: {:?}", requested_swaps);
 
@@ -79,29 +82,42 @@ async fn main() {
         }
 
         for requested_swap in swap_queue.clone().values() {
-            if is_swap_fulfilled(requested_swap, &eth_client)
-                .await
-                .expect("Unable to determine if a swap was fulfilled.")
-            {
+            let is_swap_fulfilled = match is_swap_fulfilled(requested_swap, &eth_client).await {
+                Ok(res) => res,
+                Err(err) => {
+                    error!("unable to determine if swap was fulfilled – {:?}", err);
+                    continue;
+                }
+            };
+
+            if is_swap_fulfilled {
                 swap_queue.remove(&requested_swap.order_contract);
             } else {
-                // TODO: figure out how to `continue` when one of the external calls fails
-                let quote = cow_api_client
+                let quote = match cow_api_client
                     .get_fee_and_quote(
                         requested_swap.from_token,
                         requested_swap.to_token,
                         requested_swap.amount_in,
                     )
                     .await
-                    .expect("Unable to get quote");
+                {
+                    Ok(res) => res,
+                    Err(err) => {
+                        error!("unable to fetch quote - {:?}", err);
+                        continue;
+                    }
+                };
 
                 let sell_amount_after_fees = requested_swap.amount_in - quote.fee_amount;
                 let buy_amount_after_fees_and_slippage = quote.buy_amount_after_fee * 995 / 1000;
 
-                let time = eth_client
-                    .get_chain_timestamp()
-                    .await
-                    .expect("Unable to get chain timestamp.");
+                let time = match eth_client.get_chain_timestamp().await {
+                    Ok(res) => res,
+                    Err(err) => {
+                        error!("unable to get chain timestamp – {:?}", err);
+                        continue;
+                    }
+                };
                 let valid_to = time + (60 * 60 * 24);
 
                 let eip_1271_signature = encoder::get_eip_1271_signature(
@@ -119,7 +135,7 @@ async fn main() {
 
                 info!("SIGNATURE: {:?}", eip_1271_signature.to_string());
 
-                cow_api_client
+                match cow_api_client
                     .create_order(
                         requested_swap.order_contract,
                         requested_swap.from_token,
@@ -132,7 +148,10 @@ async fn main() {
                         &eip_1271_signature,
                     )
                     .await
-                    .expect("Unable to create order via CoW API.");
+                {
+                    Ok(_) => (),
+                    Err(err) => error!("unable to create order via CoW API – {:?}", err),
+                };
             }
         }
 
