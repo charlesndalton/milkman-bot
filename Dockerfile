@@ -27,5 +27,4 @@ WORKDIR /
 
 RUN apt-get update && apt-get install -y libssl-dev git
 
-ENV RUST_LOG=INFO
 CMD ["./milkman-bot"]

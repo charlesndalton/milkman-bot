@@ -1,323 +1,188 @@
 [
     {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "internalType": "bytes32",
-                "name": "swapID",
-                "type": "bytes32"
-            }
-        ],
-        "name": "SwapExecuted",
-        "type": "event"
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "orderContract",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "orderCreator",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amountIn",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "fromToken",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "toToken",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "priceChecker",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes",
+          "name": "priceCheckerData",
+          "type": "bytes"
+        }
+      ],
+      "name": "SwapRequested",
+      "type": "event"
     },
     {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "internalType": "bytes32",
-                "name": "swapID",
-                "type": "bytes32"
-            },
-            {
-                "indexed": false,
-                "internalType": "bytes",
-                "name": "orderUID",
-                "type": "bytes"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "blockNumber",
-                "type": "uint256"
-            }
-        ],
-        "name": "SwapPaired",
-        "type": "event"
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "amountIn",
+          "type": "uint256"
+        },
+        {
+          "internalType": "contract IERC20",
+          "name": "fromToken",
+          "type": "address"
+        },
+        {
+          "internalType": "contract IERC20",
+          "name": "toToken",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "priceChecker",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes",
+          "name": "priceCheckerData",
+          "type": "bytes"
+        }
+      ],
+      "name": "cancelSwap",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
     },
     {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "internalType": "bytes32",
-                "name": "swapID",
-                "type": "bytes32"
-            },
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "user",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "receiver",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "contract IERC20",
-                "name": "fromToken",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "contract IERC20",
-                "name": "toToken",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "amountIn",
-                "type": "uint256"
-            },
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "priceChecker",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "nonce",
-                "type": "uint256"
-            }
-        ],
-        "name": "SwapRequested",
-        "type": "event"
+      "inputs": [
+        {
+          "internalType": "contract IERC20",
+          "name": "fromToken",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_swapHash",
+          "type": "bytes32"
+        }
+      ],
+      "name": "initialize",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
     },
     {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "internalType": "bytes32",
-                "name": "swapID",
-                "type": "bytes32"
-            }
-        ],
-        "name": "SwapUnpaired",
-        "type": "event"
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "orderDigest",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes",
+          "name": "encodedOrder",
+          "type": "bytes"
+        }
+      ],
+      "name": "isValidSignature",
+      "outputs": [
+        {
+          "internalType": "bytes4",
+          "name": "",
+          "type": "bytes4"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     },
     {
-        "inputs": [
-            {
-                "internalType": "address payable",
-                "name": "to",
-                "type": "address"
-            },
-            {
-                "internalType": "uint256",
-                "name": "value",
-                "type": "uint256"
-            },
-            {
-                "internalType": "bytes",
-                "name": "data",
-                "type": "bytes"
-            }
-        ],
-        "name": "execute",
-        "outputs": [
-            {
-                "internalType": "bool",
-                "name": "success",
-                "type": "bool"
-            },
-            {
-                "internalType": "bytes",
-                "name": "result",
-                "type": "bytes"
-            }
-        ],
-        "stateMutability": "nonpayable",
-        "type": "function"
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "amountIn",
+          "type": "uint256"
+        },
+        {
+          "internalType": "contract IERC20",
+          "name": "fromToken",
+          "type": "address"
+        },
+        {
+          "internalType": "contract IERC20",
+          "name": "toToken",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "priceChecker",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes",
+          "name": "priceCheckerData",
+          "type": "bytes"
+        }
+      ],
+      "name": "requestSwapExactTokensForTokens",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
     },
     {
-        "inputs": [],
-        "name": "nonce",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "components": [
-                    {
-                        "internalType": "contract IERC20",
-                        "name": "sellToken",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "contract IERC20",
-                        "name": "buyToken",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "address",
-                        "name": "receiver",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "sellAmount",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "buyAmount",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint32",
-                        "name": "validTo",
-                        "type": "uint32"
-                    },
-                    {
-                        "internalType": "bytes32",
-                        "name": "appData",
-                        "type": "bytes32"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "feeAmount",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "bytes32",
-                        "name": "kind",
-                        "type": "bytes32"
-                    },
-                    {
-                        "internalType": "bool",
-                        "name": "partiallyFillable",
-                        "type": "bool"
-                    },
-                    {
-                        "internalType": "bytes32",
-                        "name": "sellTokenBalance",
-                        "type": "bytes32"
-                    },
-                    {
-                        "internalType": "bytes32",
-                        "name": "buyTokenBalance",
-                        "type": "bytes32"
-                    }
-                ],
-                "internalType": "struct GPv2Order.Data",
-                "name": "_order",
-                "type": "tuple"
-            },
-            {
-                "internalType": "address",
-                "name": "_user",
-                "type": "address"
-            },
-            {
-                "internalType": "address",
-                "name": "_priceChecker",
-                "type": "address"
-            },
-            {
-                "internalType": "uint256",
-                "name": "_nonce",
-                "type": "uint256"
-            }
-        ],
-        "name": "pairSwap",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "_swapID",
-                "type": "bytes32"
-            }
-        ],
-        "name": "proveExecuted",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "uint256",
-                "name": "_amountIn",
-                "type": "uint256"
-            },
-            {
-                "internalType": "contract IERC20",
-                "name": "_fromToken",
-                "type": "address"
-            },
-            {
-                "internalType": "contract IERC20",
-                "name": "_toToken",
-                "type": "address"
-            },
-            {
-                "internalType": "address",
-                "name": "_to",
-                "type": "address"
-            },
-            {
-                "internalType": "address",
-                "name": "_priceChecker",
-                "type": "address"
-            }
-        ],
-        "name": "requestSwapExactTokensForTokens",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "",
-                "type": "bytes32"
-            }
-        ],
-        "name": "swaps",
-        "outputs": [
-            {
-                "internalType": "bytes",
-                "name": "",
-                "type": "bytes"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "_swapID",
-                "type": "bytes32"
-            }
-        ],
-        "name": "unpairSwap",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
+      "inputs": [],
+      "name": "swapHash",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     }
-]
+  ]
