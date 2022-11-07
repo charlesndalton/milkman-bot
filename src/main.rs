@@ -57,7 +57,7 @@ async fn main() {
     let mut swap_queue = HashMap::new();
 
     loop {
-        sleep(Duration::from_secs(10)).await;
+        sleep(Duration::from_secs(config.polling_frequency_secs)).await;
 
         let range_end = eth_client
             .get_latest_block_number()

@@ -1,7 +1,7 @@
 use crate::configuration::Configuration;
 use anyhow::{anyhow, Result};
 use ethers::abi::Address;
-use ethers::types::{U256, Bytes};
+use ethers::types::{Bytes, U256};
 use log::info;
 use serde_json::Value;
 
@@ -98,7 +98,7 @@ impl CowAPIClient {
             Some(order_uid) => {
                 info!("created order with UID {:?}", order_uid);
                 Ok(order_uid.to_owned())
-            },
+            }
             None => Err(anyhow!("Unable to retrieve UID from order generation")),
         }
     }

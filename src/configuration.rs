@@ -8,6 +8,7 @@ pub struct Configuration {
     pub network: String, // whatever infura accepts as a network e.g., 'mainnet' or 'goerli'
     pub milkman_address: String,
     pub starting_block_number: Option<u64>,
+    pub polling_frequency_secs: u64,
 }
 
 impl Configuration {
@@ -17,6 +18,11 @@ impl Configuration {
             .unwrap_or("mainnet".to_string());
         let milkman_address = collect_optional_environment_variable("MILKMAN_ADDRESS")?
             .unwrap_or("0x9d763Cca6A8551283478CeC44071d72Ec3FD58Cb".to_string());
+        let polling_frequency_secs =
+            collect_optional_environment_variable("POLLING_FREQUENCY_SECS")?
+                .map(|var| var.parse::<u64>())
+                .transpose()?
+                .unwrap_or(10);
 
         let starting_block_number =
             match collect_optional_environment_variable("STARTING_BLOCK_NUMBER")? {
@@ -29,6 +35,7 @@ impl Configuration {
             network,
             milkman_address,
             starting_block_number,
+            polling_frequency_secs,
         })
     }
 }

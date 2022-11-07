@@ -18,11 +18,8 @@ spec:
       - name: milkman-bot
         image: charlesdalton/milkman-bot:latest
         env:
-            - name: KEEPER_PRIVATE_KEY 
-              valueFrom:
-                secretKeyRef:
-                  name: keeper-private-key-secret 
-                  key: KEEPER_PRIVATE_KEY 
+            - name: RUST_LOG
+              value: "INFO"
             - name: INFURA_API_KEY
               valueFrom:
                 secretKeyRef:
