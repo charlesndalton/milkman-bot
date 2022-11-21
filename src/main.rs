@@ -17,7 +17,7 @@ mod encoder;
 mod types;
 use crate::types::Swap;
 
-/// Every 15 seconds, do the following:
+/// Every x seconds, do the following:
 /// - check for new Milkman swap requests, and enqueue them into a swap queue
 /// - check if items in the swap queue have already been fulfilled
 ///     - if the swap has already been fulfilled, dequeue it
@@ -160,7 +160,7 @@ async fn main() {
 }
 
 async fn is_swap_fulfilled(swap: &Swap, eth_client: &EthereumClient) -> Result<bool> {
-    // if all `from` tokens are gone, the swap must have completed
+    // if all `from` tokens are gone, the swap must have completed or cancelled
     Ok(eth_client
         .get_balance_of(swap.from_token, swap.order_contract)
         .await?

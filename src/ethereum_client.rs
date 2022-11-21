@@ -15,12 +15,19 @@ abigen!(
 );
 
 abigen!(
+    RawPriceChecker,
+    "./abis/PriceChecker.json",
+    event_derives(serde::Deserialize, serde::Serialize),
+);
+
+abigen!(
     RawERC20,
     "./abis/ERC20.json",
     event_derives(serde::Deserialize, serde::Serialize),
 );
 
 pub type Milkman = RawMilkman<Provider<Http>>;
+pub type PriceChecker = RawPriceChecker<Provider<Http>>;
 pub type ERC20 = RawERC20<Provider<Http>>;
 
 pub struct EthereumClient {
@@ -106,6 +113,54 @@ impl From<&SwapRequestedFilter> for Swap {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn test_ethereum_client() {
+        let config = Configuration {
+            infura_api_key: "e74132f416d346308763252779d7df22".to_string(),
+            network: "goerli".to_string(),
+            milkman_address: "0x5D9C7CBeF995ef16416D963EaCEEC8FcA2590731".to_string(),
+            starting_block_number: None,
+            polling_frequency_secs: 15,
+        };
+
+        let eth_client = EthereumClient::new(&config).expect("Unable to create Ethereum client");
+
+        let latest_block_num = eth_client
+            .get_latest_block_number()
+            .await
+            .expect("Unable to get latest block number");
+
+        assert!(latest_block_num > 7994445);
+
+        let chain_timestamp = eth_client
+            .get_chain_timestamp()
+            .await
+            .expect("Unable to get chain timestamp");
+
+        assert!(chain_timestamp > 1669053987);
+
+        let goerli_uni_addr = "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984"
+            .parse()
+            .unwrap();
+        let goerli_uni_whale = "0x41653c7d61609D856f29355E404F310Ec4142Cfb"
+            .parse()
+            .unwrap();
+
+        let balance = eth_client
+            .get_balance_of(goerli_uni_addr, goerli_uni_whale)
+            .await
+            .expect("Unable to get balance");
+
+        assert!(balance > 0.into());
+
+        let requested_swaps = eth_client
+            .get_requested_swaps(0, latest_block_num)
+            .await
+            .expect("Unable to get requested swaps");
+
+        assert!(requested_swaps.len() > 0);
+    }
 
     #[test]
     fn test_convert_swap() {
