@@ -93,6 +93,36 @@ impl EthereumClient {
 
         Ok(token.balance_of(user).call().await?)
     }
+
+    /// Get the estimated amount of gas needed to call the price checker's `isValidSignature`
+    /// function.
+    ///
+    /// `amount_in`, `from_token`, and `to_token` are needed inputs because the
+    /// price checker can branch based on them. For example, a swap using WETH
+    /// may contain one less hop, and thus less logic.
+    pub async fn get_estimated_price_checker_gas(
+        &self,
+        price_checker_address: Address,
+        price_checker_data: Bytes,
+        amount_in: U256,
+        from_token: Address,
+        to_token: Address,
+    ) -> Result<U256> {
+        let price_checker =
+            PriceChecker::new(price_checker_address, Arc::clone(&self.inner_client));
+
+        Ok(price_checker
+            .check_price(
+                amount_in,
+                from_token,
+                to_token,
+                U256::zero(),
+                U256::MAX,
+                price_checker_data,
+            )
+            .estimate_gas()
+            .await?)
+    }
 }
 
 impl From<&SwapRequestedFilter> for Swap {
