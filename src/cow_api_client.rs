@@ -20,7 +20,7 @@ impl CowAPIClient {
     pub fn new(config: &Configuration) -> Self {
         Self {
             base_url: format!("https://barn.api.cow.fi/{}/api/v1/", config.network),
-            milkman_address: config.milkman_address.clone(),
+            milkman_address: config.milkman_address.to_string(),
         }
     }
 

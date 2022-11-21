@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use ethers::types::Address;
 use log::debug;
 use std::env;
 
@@ -6,7 +7,8 @@ use std::env;
 pub struct Configuration {
     pub infura_api_key: String,
     pub network: String, // whatever infura accepts as a network e.g., 'mainnet' or 'goerli'
-    pub milkman_address: String,
+    pub milkman_address: Address,
+    pub hash_helper_address: Address,
     pub starting_block_number: Option<u64>,
     pub polling_frequency_secs: u64,
 }
@@ -17,12 +19,16 @@ impl Configuration {
         let network = collect_optional_environment_variable("MILKMAN_NETWORK")?
             .unwrap_or("mainnet".to_string());
         let milkman_address = collect_optional_environment_variable("MILKMAN_ADDRESS")?
-            .unwrap_or("0x9d763Cca6A8551283478CeC44071d72Ec3FD58Cb".to_string());
+            .unwrap_or("0x9d763Cca6A8551283478CeC44071d72Ec3FD58Cb".to_string())
+            .parse()?;
         let polling_frequency_secs =
             collect_optional_environment_variable("POLLING_FREQUENCY_SECS")?
                 .map(|var| var.parse::<u64>())
                 .transpose()?
                 .unwrap_or(10);
+        let hash_helper_address = collect_optional_environment_variable("HASH_HELPER_ADDRESS")?
+            .unwrap_or("0x429A101f42781C53c088392956c95F0A32437b8C".to_string())
+            .parse()?;
 
         let starting_block_number =
             match collect_optional_environment_variable("STARTING_BLOCK_NUMBER")? {
@@ -34,6 +40,7 @@ impl Configuration {
             infura_api_key,
             network,
             milkman_address,
+            hash_helper_address,
             starting_block_number,
             polling_frequency_secs,
         })
