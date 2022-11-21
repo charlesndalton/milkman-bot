@@ -17,6 +17,8 @@ mod encoder;
 mod types;
 use crate::types::Swap;
 
+mod constants;
+
 /// Every x seconds, do the following:
 /// - check for new Milkman swap requests, and enqueue them into a swap queue
 /// - check if items in the swap queue have already been fulfilled
@@ -93,11 +95,21 @@ async fn main() {
             if is_swap_fulfilled {
                 swap_queue.remove(&requested_swap.order_contract);
             } else {
+                let verification_gas_limit = match eth_client.get_estimated_order_contract_gas(&config, requested_swap).await {
+                    Ok(res) => res,
+                    Err(err) => {
+                        error!("unable to estimate verification gas – {:?}", err);
+                        continue;
+                    }
+                };
+
                 let quote = match cow_api_client
-                    .get_fee_and_quote(
+                    .get_quote(
+                        requested_swap.order_contract,
                         requested_swap.from_token,
                         requested_swap.to_token,
                         requested_swap.amount_in,
+                        verification_gas_limit.as_u64(),
                     )
                     .await
                 {

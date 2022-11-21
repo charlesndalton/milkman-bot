@@ -8,7 +8,8 @@ use std::convert::{From, Into};
 use std::sync::Arc;
 
 use crate::configuration::Configuration;
-use crate::encoder::{self, APP_DATA, ERC20_BALANCE, KIND_SELL};
+use crate::encoder;
+use crate::constants::{APP_DATA, ERC20_BALANCE, KIND_SELL};
 
 // TODO: maybe it's possible to hide these away in a macro?
 // the problem I've encountered is generating string literals,

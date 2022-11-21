@@ -5,8 +5,10 @@ use ethers::types::{Bytes, U256};
 use log::info;
 use serde_json::Value;
 
+use crate::constants::{APP_DATA};
+
 #[derive(Debug)]
-pub struct FeeAndQuote {
+pub struct Quote {
     pub fee_amount: U256,
     pub buy_amount_after_fee: U256,
 }
@@ -24,19 +26,33 @@ impl CowAPIClient {
         }
     }
 
-    pub async fn get_fee_and_quote(
+    pub async fn get_quote(
         &self,
+        order_contract: Address,
         sell_token: Address,
         buy_token: Address,
         sell_amount_before_fee: U256,
-    ) -> Result<FeeAndQuote> {
+        verification_gas_limit: u64,
+    ) -> Result<Quote> {
         let http_client = reqwest::Client::new();
 
         let response = http_client
-            .get(self.base_url.clone() + "feeAndQuote/sell")
-            .query(&[("sellToken", address_to_string(sell_token))])
-            .query(&[("buyToken", address_to_string(buy_token))])
-            .query(&[("sellAmountBeforeFee", sell_amount_before_fee.as_u128())])
+            .post(self.base_url.clone() + "quote")
+            .json(&serde_json::json!({
+                "sellToken": address_to_string(sell_token),
+                "buyToken": address_to_string(buy_token),
+                "sellAmountBeforeFee": sell_amount_before_fee.to_string(),
+                "appData": "0x".to_string() + APP_DATA,
+                "kind": "sell",
+                "partiallyFillable": false,
+                "from": address_to_string(order_contract),
+                "sellTokenBalance": "erc20",
+                "buyTokenBalance": "erc20",
+                "signingScheme": "eip1271",
+                "onchainOrder": true,
+                "priceQuality": "optimal",
+                "verificationGasLimit": verification_gas_limit,
+            }))
             .send()
             .await?
             .error_for_status()?;
@@ -45,13 +61,11 @@ impl CowAPIClient {
 
         println!("{:?}", response_body);
 
-        let fee_amount = response_body["fee"]["amount"].as_str().unwrap().to_owned();
-        let buy_amount_after_fee = response_body["buyAmountAfterFee"]
-            .as_str()
-            .unwrap()
-            .to_owned();
+        let quote = &response_body["quote"];
+        let fee_amount = quote["feeAmount"].as_str().ok_or(anyhow!("unable to get `feeAmount` on quote"))?.to_owned();
+        let buy_amount_after_fee = quote["buyAmountAfterFee"].as_str().ok_or(anyhow!("unable to get `buyAmountAfterFee` from quote"))?.to_owned();
 
-        Ok(FeeAndQuote {
+        Ok(Quote {
             fee_amount: fee_amount.parse::<u128>()?.into(),
             buy_amount_after_fee: buy_amount_after_fee.parse::<u128>()?.into(),
         })
