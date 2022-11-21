@@ -1,0 +1,17 @@
+name: test
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  rust-tests:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    env:
+      # Shrink artifact size by not including debug info. Makes build faster and shrinks cache.
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+    steps:
+      - uses: actions/checkout@v2
+      - uses: Swatinem/rust-cache@v1
+      - run: cargo test
