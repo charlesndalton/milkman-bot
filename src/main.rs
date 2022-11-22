@@ -124,15 +124,6 @@ async fn main() {
                 let sell_amount_after_fees = requested_swap.amount_in - quote.fee_amount;
                 let buy_amount_after_fees_and_slippage = quote.buy_amount_after_fee * 995 / 1000;
 
-                // let time = match eth_client.get_chain_timestamp().await {
-                //     Ok(res) => res,
-                //     Err(err) => {
-                //         error!("unable to get chain timestamp – {:?}", err);
-                //         continue;
-                //     }
-                // };
-                // let valid_to = time + (60 * 60 * 24);
-
                 let eip_1271_signature = encoder::get_eip_1271_signature(
                     requested_swap.from_token,
                     requested_swap.to_token,
