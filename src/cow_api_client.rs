@@ -11,6 +11,7 @@ use crate::constants::{APP_DATA};
 pub struct Quote {
     pub fee_amount: U256,
     pub buy_amount_after_fee: U256,
+    pub valid_to: u64,
 }
 
 pub struct CowAPIClient {
@@ -63,11 +64,13 @@ impl CowAPIClient {
 
         let quote = &response_body["quote"];
         let fee_amount = quote["feeAmount"].as_str().ok_or(anyhow!("unable to get `feeAmount` on quote"))?.to_owned();
-        let buy_amount_after_fee = quote["buyAmountAfterFee"].as_str().ok_or(anyhow!("unable to get `buyAmountAfterFee` from quote"))?.to_owned();
+        let buy_amount_after_fee = quote["buyAmount"].as_str().ok_or(anyhow!("unable to get `buyAmountAfterFee` from quote"))?.to_owned();
+        let valid_to = quote["validTo"].as_u64().ok_or(anyhow!("unable to get `validTo` from quote"))?;
 
         Ok(Quote {
             fee_amount: fee_amount.parse::<u128>()?.into(),
             buy_amount_after_fee: buy_amount_after_fee.parse::<u128>()?.into(),
+            valid_to
         })
     }
 
@@ -107,6 +110,16 @@ impl CowAPIClient {
             .await?
             .json::<Value>()
             .await?;
+        
+        println!("response: {:?}", response);
+        
+
+        // let response = response
+        //     .error_for_status()?
+        //     .json::<Value>()
+        //     .await?;
+
+    
 
         match response.as_str() {
             Some(order_uid) => {

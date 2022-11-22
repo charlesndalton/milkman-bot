@@ -95,13 +95,14 @@ async fn main() {
             if is_swap_fulfilled {
                 swap_queue.remove(&requested_swap.order_contract);
             } else {
-                let verification_gas_limit = match eth_client.get_estimated_order_contract_gas(&config, requested_swap).await {
+                let mut verification_gas_limit = match eth_client.get_estimated_order_contract_gas(&config, requested_swap).await {
                     Ok(res) => res,
                     Err(err) => {
                         error!("unable to estimate verification gas – {:?}", err);
                         continue;
                     }
                 };
+                verification_gas_limit = (verification_gas_limit * 11) / 10; // extra padding
 
                 let quote = match cow_api_client
                     .get_quote(
@@ -123,14 +124,14 @@ async fn main() {
                 let sell_amount_after_fees = requested_swap.amount_in - quote.fee_amount;
                 let buy_amount_after_fees_and_slippage = quote.buy_amount_after_fee * 995 / 1000;
 
-                let time = match eth_client.get_chain_timestamp().await {
-                    Ok(res) => res,
-                    Err(err) => {
-                        error!("unable to get chain timestamp – {:?}", err);
-                        continue;
-                    }
-                };
-                let valid_to = time + (60 * 60 * 24);
+                // let time = match eth_client.get_chain_timestamp().await {
+                //     Ok(res) => res,
+                //     Err(err) => {
+                //         error!("unable to get chain timestamp – {:?}", err);
+                //         continue;
+                //     }
+                // };
+                // let valid_to = time + (60 * 60 * 24);
 
                 let eip_1271_signature = encoder::get_eip_1271_signature(
                     requested_swap.from_token,
@@ -138,7 +139,7 @@ async fn main() {
                     requested_swap.receiver,
                     sell_amount_after_fees,
                     buy_amount_after_fees_and_slippage,
-                    valid_to,
+                    quote.valid_to,
                     quote.fee_amount,
                     requested_swap.order_creator,
                     requested_swap.price_checker,
@@ -154,7 +155,7 @@ async fn main() {
                         requested_swap.to_token,
                         sell_amount_after_fees,
                         buy_amount_after_fees_and_slippage,
-                        valid_to,
+                        quote.valid_to,
                         quote.fee_amount,
                         requested_swap.receiver,
                         &eip_1271_signature,
