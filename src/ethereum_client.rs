@@ -8,8 +8,8 @@ use std::convert::{From, Into};
 use std::sync::Arc;
 
 use crate::configuration::Configuration;
-use crate::encoder;
 use crate::constants::{APP_DATA, ERC20_BALANCE, KIND_SELL};
+use crate::encoder;
 
 // TODO: maybe it's possible to hide these away in a macro?
 // the problem I've encountered is generating string literals,
@@ -21,11 +21,11 @@ abigen!(
     event_derives(serde::Deserialize, serde::Serialize),
 );
 
-abigen!(
-    RawPriceChecker,
-    "./abis/PriceChecker.json",
-    event_derives(serde::Deserialize, serde::Serialize),
-);
+// abigen!(
+//     RawPriceChecker,
+//     "./abis/PriceChecker.json",
+//     event_derives(serde::Deserialize, serde::Serialize),
+// );
 
 abigen!(
     RawHashHelper,
@@ -40,7 +40,7 @@ abigen!(
 );
 
 pub type Milkman = RawMilkman<Provider<Http>>;
-pub type PriceChecker = RawPriceChecker<Provider<Http>>;
+// pub type PriceChecker = RawPriceChecker<Provider<Http>>;
 pub type HashHelper = RawHashHelper<Provider<Http>>;
 pub type ERC20 = RawERC20<Provider<Http>>;
 
@@ -160,35 +160,35 @@ impl EthereumClient {
             .await?)
     }
 
-    /// Get the estimated amount of gas needed to call the price checker's `isValidSignature`
-    /// function.
-    ///
-    /// `amount_in`, `from_token`, and `to_token` are needed inputs because the
-    /// price checker can branch based on them. For example, a swap using WETH
-    /// may contain one less hop, and thus less logic.
-    pub async fn _get_estimated_price_checker_gas(
-        &self,
-        price_checker_address: Address,
-        price_checker_data: Bytes,
-        amount_in: U256,
-        from_token: Address,
-        to_token: Address,
-    ) -> Result<U256> {
-        let price_checker =
-            PriceChecker::new(price_checker_address, Arc::clone(&self.inner_client));
+    // Get the estimated amount of gas needed to call the price checker's `isValidSignature`
+    // function.
+    //
+    // `amount_in`, `from_token`, and `to_token` are needed inputs because the
+    // price checker can branch based on them. For example, a swap using WETH
+    // may contain one less hop, and thus less logic.
+    // pub async fn _get_estimated_price_checker_gas(
+    //     &self,
+    //     price_checker_address: Address,
+    //     price_checker_data: Bytes,
+    //     amount_in: U256,
+    //     from_token: Address,
+    //     to_token: Address,
+    // ) -> Result<U256> {
+    //     let price_checker =
+    //         PriceChecker::new(price_checker_address, Arc::clone(&self.inner_client));
 
-        Ok(price_checker
-            .check_price(
-                amount_in,
-                from_token,
-                to_token,
-                U256::zero(),
-                U256::MAX,
-                price_checker_data,
-            )
-            .estimate_gas()
-            .await?)
-    }
+    //     Ok(price_checker
+    //         .check_price(
+    //             amount_in,
+    //             from_token,
+    //             to_token,
+    //             U256::zero(),
+    //             U256::MAX,
+    //             price_checker_data,
+    //         )
+    //         .estimate_gas()
+    //         .await?)
+    // }
 }
 
 impl From<&SwapRequestedFilter> for Swap {

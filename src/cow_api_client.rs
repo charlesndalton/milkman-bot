@@ -2,10 +2,10 @@ use crate::configuration::Configuration;
 use anyhow::{anyhow, Result};
 use ethers::abi::Address;
 use ethers::types::{Bytes, U256};
-use log::info;
+use log::{debug, info};
 use serde_json::Value;
 
-use crate::constants::{APP_DATA};
+use crate::constants::APP_DATA;
 
 #[derive(Debug)]
 pub struct Quote {
@@ -60,17 +60,28 @@ impl CowAPIClient {
 
         let response_body = response.json::<Value>().await?;
 
-        println!("{:?}", response_body);
+        debug!(
+            "Got back the following response body from the quote endpoint: {:?}",
+            response_body
+        );
 
         let quote = &response_body["quote"];
-        let fee_amount = quote["feeAmount"].as_str().ok_or(anyhow!("unable to get `feeAmount` on quote"))?.to_owned();
-        let buy_amount_after_fee = quote["buyAmount"].as_str().ok_or(anyhow!("unable to get `buyAmountAfterFee` from quote"))?.to_owned();
-        let valid_to = quote["validTo"].as_u64().ok_or(anyhow!("unable to get `validTo` from quote"))?;
+        let fee_amount = quote["feeAmount"]
+            .as_str()
+            .ok_or(anyhow!("unable to get `feeAmount` on quote"))?
+            .to_owned();
+        let buy_amount_after_fee = quote["buyAmount"]
+            .as_str()
+            .ok_or(anyhow!("unable to get `buyAmountAfterFee` from quote"))?
+            .to_owned();
+        let valid_to = quote["validTo"]
+            .as_u64()
+            .ok_or(anyhow!("unable to get `validTo` from quote"))?;
 
         Ok(Quote {
             fee_amount: fee_amount.parse::<u128>()?.into(),
             buy_amount_after_fee: buy_amount_after_fee.parse::<u128>()?.into(),
-            valid_to
+            valid_to,
         })
     }
 

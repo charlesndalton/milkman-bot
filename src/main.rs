@@ -1,7 +1,8 @@
 use anyhow::Result;
-use log::{error, info};
+use log::{debug, error, info};
 use std::{collections::HashMap, time::Duration};
 use tokio::time::sleep;
+use hex::ToHex;
 
 mod configuration;
 use crate::configuration::Configuration;
@@ -54,7 +55,7 @@ async fn main() {
             .expect("Unable to get latest block number before starting."),
     );
 
-    info!("range start: {}", range_start);
+    debug!("range start: {}", range_start);
 
     let mut swap_queue = HashMap::new();
 
@@ -66,7 +67,7 @@ async fn main() {
             .await
             .expect("Unable to get latest block number."); // should we panic here if we can't get it? another option would be continuing in the loop, but then we might not observe that the bot is really `down`
 
-        info!("range end: {}", range_end);
+        debug!("range end: {}", range_end);
 
         let requested_swaps = match eth_client.get_requested_swaps(range_start, range_end).await {
             Ok(swaps) => swaps,
@@ -76,10 +77,18 @@ async fn main() {
             }
         };
 
-        info!("Requested swaps: {:?}", requested_swaps);
+        if requested_swaps.len() > 0 {
+            info!(
+                "Found {} requested swaps between blocks {} and {}",
+                requested_swaps.len(),
+                range_start,
+                range_end
+            );
+        }
 
         for requested_swap in requested_swaps {
-            info!("SWAP: {:?}", requested_swap);
+            info!("Inserting following swap in queue: {:?}", requested_swap);
+            debug!("Price checker data hex: 0x{}", requested_swap.price_checker_data.encode_hex::<String>());
             swap_queue.insert(requested_swap.order_contract, requested_swap);
         }
 
@@ -93,9 +102,20 @@ async fn main() {
             };
 
             if is_swap_fulfilled {
+                info!(
+                    "Swap with order contract ({}) was fulfilled, removing from queue.",
+                    requested_swap.order_contract
+                );
                 swap_queue.remove(&requested_swap.order_contract);
             } else {
-                let mut verification_gas_limit = match eth_client.get_estimated_order_contract_gas(&config, requested_swap).await {
+                info!(
+                    "Handling swap with order contract ({})",
+                    requested_swap.order_contract
+                );
+                let mut verification_gas_limit = match eth_client
+                    .get_estimated_order_contract_gas(&config, requested_swap)
+                    .await
+                {
                     Ok(res) => res,
                     Err(err) => {
                         error!("unable to estimate verification gas – {:?}", err);
@@ -137,8 +157,6 @@ async fn main() {
                     &requested_swap.price_checker_data,
                 );
 
-                info!("SIGNATURE: {:?}", eip_1271_signature.to_string());
-
                 match cow_api_client
                     .create_order(
                         requested_swap.order_contract,
@@ -164,7 +182,7 @@ async fn main() {
 }
 
 async fn is_swap_fulfilled(swap: &Swap, eth_client: &EthereumClient) -> Result<bool> {
-    // if all `from` tokens are gone, the swap must have completed or cancelled
+    // if all `from` tokens are gone, the swap must have been completed or cancelled
     Ok(eth_client
         .get_balance_of(swap.from_token, swap.order_contract)
         .await?
