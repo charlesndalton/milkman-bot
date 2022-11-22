@@ -108,18 +108,9 @@ impl CowAPIClient {
             }))
             .send()
             .await?
+            .error_for_status()?
             .json::<Value>()
             .await?;
-        
-        println!("response: {:?}", response);
-        
-
-        // let response = response
-        //     .error_for_status()?
-        //     .json::<Value>()
-        //     .await?;
-
-    
 
         match response.as_str() {
             Some(order_uid) => {
