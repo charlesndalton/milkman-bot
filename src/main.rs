@@ -123,6 +123,7 @@ async fn main() {
                     }
                 };
                 verification_gas_limit = (verification_gas_limit * 11) / 10; // extra padding
+                debug!("verification gas limit to use - {:?}", verification_gas_limit);
 
                 let quote = match cow_api_client
                     .get_quote(
