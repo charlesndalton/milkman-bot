@@ -19,7 +19,7 @@ impl Configuration {
         let network = collect_optional_environment_variable("MILKMAN_NETWORK")?
             .unwrap_or("mainnet".to_string());
         let milkman_address = collect_optional_environment_variable("MILKMAN_ADDRESS")?
-            .unwrap_or("0x9d763Cca6A8551283478CeC44071d72Ec3FD58Cb".to_string())
+            .unwrap_or("0x9D3164a9428A85F719e7f509eA47ca5D60B55E5C".to_string())
             .parse()?;
         let polling_frequency_secs =
             collect_optional_environment_variable("POLLING_FREQUENCY_SECS")?
@@ -27,7 +27,7 @@ impl Configuration {
                 .transpose()?
                 .unwrap_or(10);
         let hash_helper_address = collect_optional_environment_variable("HASH_HELPER_ADDRESS")?
-            .unwrap_or("0x429A101f42781C53c088392956c95F0A32437b8C".to_string())
+            .unwrap_or("0x49Fc95c908902Cf48f5F26ed5ADE284de3b55197".to_string())
             .parse()?;
 
         let starting_block_number =
