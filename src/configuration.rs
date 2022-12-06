@@ -3,7 +3,7 @@ use ethers::types::Address;
 use log::debug;
 use std::env;
 
-use crate::constants::{PROD_MILKMAN_ADDRESS, MAINNET_HASH_HELPER_ADDRESS};
+use crate::constants::{MAINNET_HASH_HELPER_ADDRESS, PROD_MILKMAN_ADDRESS};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Configuration {

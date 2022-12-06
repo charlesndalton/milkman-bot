@@ -1,8 +1,8 @@
 use anyhow::Result;
+use hex::ToHex;
 use log::{debug, error, info};
 use std::{collections::HashMap, time::Duration};
 use tokio::time::sleep;
-use hex::ToHex;
 
 mod configuration;
 use crate::configuration::Configuration;
@@ -88,7 +88,10 @@ async fn main() {
 
         for requested_swap in requested_swaps {
             info!("Inserting following swap in queue: {:?}", requested_swap);
-            debug!("Price checker data hex: 0x{}", requested_swap.price_checker_data.encode_hex::<String>());
+            debug!(
+                "Price checker data hex: 0x{}",
+                requested_swap.price_checker_data.encode_hex::<String>()
+            );
             swap_queue.insert(requested_swap.order_contract, requested_swap);
         }
 
@@ -123,7 +126,10 @@ async fn main() {
                     }
                 };
                 verification_gas_limit = (verification_gas_limit * 11) / 10; // extra padding
-                debug!("verification gas limit to use - {:?}", verification_gas_limit);
+                debug!(
+                    "verification gas limit to use - {:?}",
+                    verification_gas_limit
+                );
 
                 let quote = match cow_api_client
                     .get_quote(

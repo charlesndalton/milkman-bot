@@ -62,7 +62,7 @@ impl CowAPIClient {
             Err(err) => {
                 debug!("GET quote failed with body: {:?}", response.text().await?);
                 return Err(anyhow!(err));
-            },
+            }
         };
 
         debug!(
@@ -124,13 +124,18 @@ impl CowAPIClient {
             }))
             .send()
             .await?;
-        
+
         let order_uid = match response.error_for_status_ref() {
-            Ok(_) => response.json::<Value>().await?.as_str().ok_or(anyhow!("Unable to retrieve UID from POST order response"))?.to_string(),
+            Ok(_) => response
+                .json::<Value>()
+                .await?
+                .as_str()
+                .ok_or(anyhow!("Unable to retrieve UID from POST order response"))?
+                .to_string(),
             Err(err) => {
                 debug!("POST order failed with body: {:?}", response.text().await?);
                 return Err(anyhow!(err));
-            },
+            }
         };
 
         info!("created order with UID {}", order_uid);

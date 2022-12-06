@@ -1,8 +1,8 @@
 use crate::types::{BlockNumber, Swap};
 use anyhow::{anyhow, Result};
 use ethers::prelude::*;
-use log::debug;
 use hex::FromHex;
+use log::debug;
 #[cfg(test)]
 use rand::prelude::*;
 use std::convert::{From, Into};
@@ -154,8 +154,14 @@ impl EthereumClient {
             swap_request.price_checker,
             &swap_request.price_checker_data,
         );
-        
-        debug!("Is valid sig? {:?}", order_contract.is_valid_signature(mock_order_digest, mock_signature.clone()).call().await?);
+
+        debug!(
+            "Is valid sig? {:?}",
+            order_contract
+                .is_valid_signature(mock_order_digest, mock_signature.clone())
+                .call()
+                .await?
+        );
 
         Ok(order_contract
             .is_valid_signature(mock_order_digest, mock_signature)
