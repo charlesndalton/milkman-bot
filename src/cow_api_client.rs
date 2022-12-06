@@ -55,10 +55,15 @@ impl CowAPIClient {
                 "verificationGasLimit": verification_gas_limit,
             }))
             .send()
-            .await?
-            .error_for_status()?;
+            .await?;
 
-        let response_body = response.json::<Value>().await?;
+        let response_body = match response.error_for_status_ref() {
+            Ok(_) => response.json::<Value>().await?,
+            Err(err) => {
+                debug!("GET quote failed with body: {:?}", response.text().await?);
+                return Err(anyhow!(err));
+            },
+        };
 
         debug!(
             "Got back the following response body from the quote endpoint: {:?}",
@@ -118,18 +123,19 @@ impl CowAPIClient {
                 "signingScheme": "eip1271"
             }))
             .send()
-            .await?
-            .error_for_status()?
-            .json::<Value>()
             .await?;
+        
+        let order_uid = match response.error_for_status_ref() {
+            Ok(_) => response.json::<Value>().await?.as_str().ok_or(anyhow!("Unable to retrieve UID from POST order response"))?.to_string(),
+            Err(err) => {
+                debug!("POST order failed with body: {:?}", response.text().await?);
+                return Err(anyhow!(err));
+            },
+        };
 
-        match response.as_str() {
-            Some(order_uid) => {
-                info!("created order with UID {:?}", order_uid);
-                Ok(order_uid.to_owned())
-            }
-            None => Err(anyhow!("Unable to retrieve UID from order generation")),
-        }
+        info!("created order with UID {}", order_uid);
+
+        Ok(order_uid)
     }
 }
 
