@@ -106,8 +106,8 @@ impl CowAPIClient {
         let response = http_client
             .post(self.base_url.clone() + "orders")
             .json(&serde_json::json!({
-                "sellToken": address_to_string(sell_token),
-                "buyToken": address_to_string(buy_token),
+                "sellToken": sell_token,
+                "buyToken": buy_token,
                 "sellAmount": sell_amount.to_string(),
                 "buyAmount": buy_amount.to_string(),
                 "validTo": valid_to,
@@ -115,9 +115,9 @@ impl CowAPIClient {
                 "feeAmount": fee_amount.to_string(),
                 "kind": "sell",
                 "partiallyFillable": false,
-                "receiver": address_to_string(receiver),
+                "receiver": receiver,
                 "signature": eip_1271_signature.to_string(),
-                "from": address_to_string(order_contract),
+                "from": order_contract,
                 "sellTokenBalance": "erc20",
                 "buyTokenBalance": "erc20",
                 "signingScheme": "eip1271"
@@ -142,8 +142,4 @@ impl CowAPIClient {
 
         Ok(order_uid)
     }
-}
-
-fn address_to_string(address: Address) -> String {
-    "0x".to_owned() + &hex::encode(address.to_fixed_bytes())
 }
