@@ -41,11 +41,15 @@ pub struct EthereumClient {
 
 impl EthereumClient {
     pub fn new(config: &Configuration) -> Result<Self> {
-        let infura_url = format!(
-            "https://{}.infura.io/v3/{}",
-            config.network, config.infura_api_key
-        );
-        let provider = Arc::new(Provider::<Http>::try_from(infura_url)?);
+        let node_url = if config.node_base_url.is_some() {
+            config.node_base_url.clone().unwrap()
+        } else {
+            format!(
+                "https://{}.infura.io/v3/{}",
+                config.network, config.infura_api_key.clone().unwrap()
+            )
+        };
+        let provider = Arc::new(Provider::<Http>::try_from(node_url)?);
 
         Ok(Self {
             milkman: Milkman::new(config.milkman_address, Arc::clone(&provider)),
@@ -182,7 +186,7 @@ mod tests {
     #[tokio::test]
     async fn test_ethereum_client() {
         let config = Configuration {
-            infura_api_key: "e74132f416d346308763252779d7df22".to_string(),
+            infura_api_key: Some("e74132f416d346308763252779d7df22".to_string()),
             network: "goerli".to_string(),
             milkman_address: "0x5D9C7CBeF995ef16416D963EaCEEC8FcA2590731"
                 .parse()
@@ -192,6 +196,7 @@ mod tests {
                 .unwrap(),
             starting_block_number: None,
             polling_frequency_secs: 15,
+            node_base_url: None,
         };
 
         let eth_client = EthereumClient::new(&config).expect("Unable to create Ethereum client");

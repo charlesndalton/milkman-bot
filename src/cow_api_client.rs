@@ -40,13 +40,13 @@ impl CowAPIClient {
         let response = http_client
             .post(self.base_url.clone() + "quote")
             .json(&serde_json::json!({
-                "sellToken": address_to_string(sell_token),
-                "buyToken": address_to_string(buy_token),
+                "sellToken": sell_token,
+                "buyToken": buy_token,
                 "sellAmountBeforeFee": sell_amount_before_fee.to_string(),
                 "appData": "0x".to_string() + APP_DATA,
                 "kind": "sell",
                 "partiallyFillable": false,
-                "from": address_to_string(order_contract),
+                "from": order_contract,
                 "sellTokenBalance": "erc20",
                 "buyTokenBalance": "erc20",
                 "signingScheme": "eip1271",
