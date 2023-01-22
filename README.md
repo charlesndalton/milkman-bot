@@ -78,3 +78,13 @@ Controls level of logging. You can use `DEBUG` for more logs.
 
 *Description:*
 Self-explanatory.
+
+
+### NODE_BASE_URL
+
+*Default*:
+N/A
+
+*Description*:
+If you want to use something other than Infura. Needs to be JSON-RPC compatible. 
+
