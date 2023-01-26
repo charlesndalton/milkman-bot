@@ -19,7 +19,7 @@ hex = "0.4.3"
 log = "0.4"
 env_logger = "0.8.4"
 anyhow = "1.0.61"
-ethers = { git = "https://github.com/gakonst/ethers-rs", features = ["abigen", "openssl"] }
+ethers = { version = "0.17.0", features = ["abigen", "openssl"] }
 url = { version = "2.2.2" }
 
 [dev-dependencies]

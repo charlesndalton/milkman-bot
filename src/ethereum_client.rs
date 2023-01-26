@@ -1,12 +1,16 @@
 use crate::types::{BlockNumber, Swap};
 use anyhow::{anyhow, Result};
 use ethers::prelude::*;
+use hex::FromHex;
+use log::debug;
 #[cfg(test)]
 use rand::prelude::*;
 use std::convert::{From, Into};
 use std::sync::Arc;
 
 use crate::configuration::Configuration;
+use crate::constants::{APP_DATA, ERC20_BALANCE, KIND_SELL};
+use crate::encoder;
 
 abigen!(
     RawMilkman,
@@ -15,8 +19,8 @@ abigen!(
 );
 
 abigen!(
-    RawPriceChecker,
-    "./abis/PriceChecker.json",
+    RawHashHelper,
+    "./abis/HashHelper.json",
     event_derives(serde::Deserialize, serde::Serialize),
 );
 
@@ -27,7 +31,7 @@ abigen!(
 );
 
 pub type Milkman = RawMilkman<Provider<Http>>;
-pub type PriceChecker = RawPriceChecker<Provider<Http>>;
+pub type HashHelper = RawHashHelper<Provider<Http>>;
 pub type ERC20 = RawERC20<Provider<Http>>;
 
 pub struct EthereumClient {
@@ -37,17 +41,18 @@ pub struct EthereumClient {
 
 impl EthereumClient {
     pub fn new(config: &Configuration) -> Result<Self> {
-        let infura_url = format!(
-            "https://{}.infura.io/v3/{}",
-            config.network, config.infura_api_key
-        );
-        let provider = Arc::new(Provider::<Http>::try_from(infura_url)?);
+        let node_url = if config.node_base_url.is_some() {
+            config.node_base_url.clone().unwrap()
+        } else {
+            format!(
+                "https://{}.infura.io/v3/{}",
+                config.network, config.infura_api_key.clone().unwrap()
+            )
+        };
+        let provider = Arc::new(Provider::<Http>::try_from(node_url)?);
 
         Ok(Self {
-            milkman: Milkman::new(
-                config.milkman_address.parse::<Address>()?,
-                Arc::clone(&provider),
-            ),
+            milkman: Milkman::new(config.milkman_address, Arc::clone(&provider)),
             inner_client: provider,
         })
     }
@@ -93,6 +98,70 @@ impl EthereumClient {
 
         Ok(token.balance_of(user).call().await?)
     }
+
+    /// To estimate the amount of gas it'll take to call `isValidSignature`, we
+    /// create a mock order & signature based on the existing order and use those
+    /// along with ethers-rs's `estimate_gas()`.
+    pub async fn get_estimated_order_contract_gas(
+        &self,
+        config: &Configuration,
+        swap_request: &Swap,
+    ) -> Result<U256> {
+        let order_contract =
+            Milkman::new(swap_request.order_contract, Arc::clone(&self.inner_client));
+
+        let hash_helper =
+            HashHelper::new(config.hash_helper_address, Arc::clone(&self.inner_client));
+
+        let domain_separator = self.milkman.domain_separator().call().await?;
+
+        let mock_order = Data {
+            sell_token: swap_request.from_token,
+            buy_token: swap_request.to_token,
+            receiver: swap_request.receiver,
+            sell_amount: swap_request.amount_in,
+            buy_amount: U256::MAX,
+            valid_to: u32::MAX,
+            app_data: Vec::from_hex(APP_DATA).unwrap().try_into().unwrap(),
+            fee_amount: U256::zero(),
+            kind: Vec::from_hex(KIND_SELL).unwrap().try_into().unwrap(),
+            partially_fillable: false,
+            sell_token_balance: Vec::from_hex(ERC20_BALANCE).unwrap().try_into().unwrap(),
+            buy_token_balance: Vec::from_hex(ERC20_BALANCE).unwrap().try_into().unwrap(),
+        };
+
+        let mock_order_digest = hash_helper
+            .hash(mock_order, domain_separator)
+            .call()
+            .await?;
+
+        let mock_signature = encoder::get_eip_1271_signature(
+            swap_request.from_token,
+            swap_request.to_token,
+            swap_request.receiver,
+            swap_request.amount_in,
+            U256::MAX,
+            u32::MAX as u64,
+            U256::zero(),
+            swap_request.order_creator,
+            swap_request.price_checker,
+            &swap_request.price_checker_data,
+        );
+
+        debug!(
+            "Is valid sig? {:?}",
+            order_contract
+                .is_valid_signature(mock_order_digest, mock_signature.clone())
+                .call()
+                .await?
+        );
+
+        Ok(order_contract
+            .is_valid_signature(mock_order_digest, mock_signature)
+            .estimate_gas()
+            .await?)
+    }
+
 }
 
 impl From<&SwapRequestedFilter> for Swap {
@@ -117,11 +186,17 @@ mod tests {
     #[tokio::test]
     async fn test_ethereum_client() {
         let config = Configuration {
-            infura_api_key: "e74132f416d346308763252779d7df22".to_string(),
+            infura_api_key: Some("e74132f416d346308763252779d7df22".to_string()),
             network: "goerli".to_string(),
-            milkman_address: "0x5D9C7CBeF995ef16416D963EaCEEC8FcA2590731".to_string(),
+            milkman_address: "0x5D9C7CBeF995ef16416D963EaCEEC8FcA2590731"
+                .parse()
+                .unwrap(),
+            hash_helper_address: "0x429A101f42781C53c088392956c95F0A32437b8C"
+                .parse()
+                .unwrap(),
             starting_block_number: None,
             polling_frequency_secs: 15,
+            node_base_url: None,
         };
 
         let eth_client = EthereumClient::new(&config).expect("Unable to create Ethereum client");

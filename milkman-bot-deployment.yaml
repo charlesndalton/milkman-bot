@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: milkman-bot
-        image: charlesdalton/milkman-bot-legacy:latest
+        image: charlesdalton/milkman-bot:latest
         env:
             - name: RUST_LOG
               value: "INFO"

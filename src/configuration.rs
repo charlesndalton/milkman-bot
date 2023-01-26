@@ -1,28 +1,43 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
+use ethers::types::Address;
 use log::debug;
 use std::env;
 
+use crate::constants::{MAINNET_HASH_HELPER_ADDRESS, PROD_MILKMAN_ADDRESS};
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Configuration {
-    pub infura_api_key: String,
+    pub infura_api_key: Option<String>,
     pub network: String, // whatever infura accepts as a network e.g., 'mainnet' or 'goerli'
-    pub milkman_address: String,
+    pub milkman_address: Address,
+    pub hash_helper_address: Address,
     pub starting_block_number: Option<u64>,
     pub polling_frequency_secs: u64,
+    pub node_base_url: Option<String>,
 }
 
 impl Configuration {
     pub fn get_from_environment() -> Result<Self> {
-        let infura_api_key = collect_required_environment_variable("INFURA_API_KEY")?;
+        let infura_api_key = collect_optional_environment_variable("INFURA_API_KEY")?;
+        let node_base_url = collect_optional_environment_variable("NODE_BASE_URL")?;
+
+        if infura_api_key.is_none() && node_base_url.is_none() {
+            return Err(anyhow!("either `infura_api_key` or `node_base_url` must be set"))
+        }
+
         let network = collect_optional_environment_variable("MILKMAN_NETWORK")?
             .unwrap_or("mainnet".to_string());
         let milkman_address = collect_optional_environment_variable("MILKMAN_ADDRESS")?
-            .unwrap_or("0x9d763Cca6A8551283478CeC44071d72Ec3FD58Cb".to_string());
+            .unwrap_or(PROD_MILKMAN_ADDRESS.to_string())
+            .parse()?;
         let polling_frequency_secs =
             collect_optional_environment_variable("POLLING_FREQUENCY_SECS")?
                 .map(|var| var.parse::<u64>())
                 .transpose()?
                 .unwrap_or(10);
+        let hash_helper_address = collect_optional_environment_variable("HASH_HELPER_ADDRESS")?
+            .unwrap_or(MAINNET_HASH_HELPER_ADDRESS.to_string())
+            .parse()?;
 
         let starting_block_number =
             match collect_optional_environment_variable("STARTING_BLOCK_NUMBER")? {
@@ -34,8 +49,10 @@ impl Configuration {
             infura_api_key,
             network,
             milkman_address,
+            hash_helper_address,
             starting_block_number,
             polling_frequency_secs,
+            node_base_url,
         })
     }
 }
@@ -65,18 +82,18 @@ mod tests {
     fn test_get_config() {
         setup_env_vars(Some("a"), Some("c"));
         let config = Configuration::get_from_environment().expect("failed to get");
-        check_configuration(config, "a", None);
+        check_configuration(config, Some("a"), None);
 
         setup_env_vars(Some("a"), Some("123"));
         let config = Configuration::get_from_environment().expect("failed to get");
-        check_configuration(config, "a", Some(123));
+        check_configuration(config, Some("a"), Some(123));
 
         setup_env_vars(None, Some("123"));
         assert!(Configuration::get_from_environment().is_err());
 
         setup_env_vars(Some("a"), None);
         let config = Configuration::get_from_environment().expect("failed to get");
-        check_configuration(config, "a", None);
+        check_configuration(config, Some("a"), None);
     }
 
     fn setup_env_vars(infura_api_key: Option<&str>, starting_block_number: Option<&str>) {
@@ -93,10 +110,10 @@ mod tests {
 
     fn check_configuration(
         config: Configuration,
-        expected_infura_api_key: &str,
+        expected_infura_api_key: Option<&str>,
         expected_starting_block_number: Option<u64>,
     ) {
-        assert_eq!(config.infura_api_key, expected_infura_api_key);
+        assert_eq!(config.infura_api_key.as_deref(), expected_infura_api_key);
         assert_eq!(config.starting_block_number, expected_starting_block_number);
     }
 }

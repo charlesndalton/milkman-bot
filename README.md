@@ -39,7 +39,7 @@ pass in 'goerli'.
 ### MILKMAN_ADDRESS
 
 *Default:*
-TBD
+0x11C76AD590ABDFFCD980afEC9ad951B160F02797
 
 *Description:*
 Address of the core milkman contract that the bot watches.
@@ -70,3 +70,21 @@ an issue.
 
 *Description:*
 Controls level of logging. You can use `DEBUG` for more logs.
+
+### HASH_HELPER_ADDRESS
+
+*Default:*
+0x49Fc95c908902Cf48f5F26ed5ADE284de3b55197
+
+*Description:*
+Self-explanatory.
+
+
+### NODE_BASE_URL
+
+*Default*:
+N/A
+
+*Description*:
+If you want to use something other than Infura. Needs to be JSON-RPC compatible. 
+
