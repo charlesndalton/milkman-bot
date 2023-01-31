@@ -11,7 +11,10 @@ jobs:
       # Shrink artifact size by not including debug info. Makes build faster and shrinks cache.
       CARGO_PROFILE_DEV_DEBUG: 0
       CARGO_PROFILE_TEST_DEBUG: 0
+      # Error build on warning (including clippy lints)
+      RUSTFLAGS: "-Dwarnings"
     steps:
       - uses: actions/checkout@v2
       - uses: Swatinem/rust-cache@v1
       - run: cargo test
+      - run: cargo clippy
