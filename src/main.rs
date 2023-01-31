@@ -11,9 +11,10 @@ mod ethereum_client;
 use crate::ethereum_client::EthereumClient;
 
 mod cow_api_client;
-use crate::cow_api_client::CowAPIClient;
+use crate::cow_api_client::{CowAPIClient, Order};
 
 mod encoder;
+use crate::encoder::SignatureData;
 
 mod types;
 use crate::types::Swap;
@@ -77,7 +78,7 @@ async fn main() {
             }
         };
 
-        if requested_swaps.len() > 0 {
+        if !requested_swaps.is_empty() {
             info!(
                 "Found {} requested swaps between blocks {} and {}",
                 requested_swaps.len(),
@@ -151,32 +152,31 @@ async fn main() {
                 let sell_amount_after_fees = requested_swap.amount_in - quote.fee_amount;
                 let buy_amount_after_fees_and_slippage = quote.buy_amount_after_fee * 995 / 1000;
 
-                let eip_1271_signature = encoder::get_eip_1271_signature(
-                    requested_swap.from_token,
-                    requested_swap.to_token,
-                    requested_swap.receiver,
+                let eip_1271_signature = encoder::get_eip_1271_signature(SignatureData {
+                    from_token: requested_swap.from_token,
+                    to_token: requested_swap.to_token,
+                    receiver: requested_swap.receiver,
                     sell_amount_after_fees,
                     buy_amount_after_fees_and_slippage,
-                    quote.valid_to,
-                    quote.fee_amount,
-                    requested_swap.order_creator,
-                    requested_swap.price_checker,
-                    &requested_swap.price_checker_data,
-                );
-
+                    valid_to: quote.valid_to,
+                    fee_amount: quote.fee_amount,
+                    order_creator: requested_swap.order_creator,
+                    price_checker: requested_swap.price_checker,
+                    price_checker_data: &requested_swap.price_checker_data,
+                });
 
                 match cow_api_client
-                    .create_order(
-                        requested_swap.order_contract,
-                        requested_swap.from_token,
-                        requested_swap.to_token,
-                        sell_amount_after_fees,
-                        buy_amount_after_fees_and_slippage,
-                        quote.valid_to,
-                        quote.fee_amount,
-                        requested_swap.receiver,
-                        &eip_1271_signature,
-                    )
+                    .create_order(Order {
+                        order_contract: requested_swap.order_contract,
+                        sell_token: requested_swap.from_token,
+                        buy_token: requested_swap.to_token,
+                        sell_amount: sell_amount_after_fees,
+                        buy_amount: buy_amount_after_fees_and_slippage,
+                        valid_to: quote.valid_to,
+                        fee_amount: quote.fee_amount,
+                        receiver: requested_swap.receiver,
+                        eip_1271_signature: &eip_1271_signature,
+                    })
                     .await
                 {
                     Ok(_) => (),

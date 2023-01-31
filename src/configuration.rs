@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Result};
 use ethers::types::Address;
 use log::debug;
 use std::env;
@@ -22,13 +22,16 @@ impl Configuration {
         let node_base_url = collect_optional_environment_variable("NODE_BASE_URL")?;
 
         if infura_api_key.is_none() && node_base_url.is_none() {
-            return Err(anyhow!("either `infura_api_key` or `node_base_url` must be set"))
+            return Err(anyhow!(
+                "either `infura_api_key` or `node_base_url` must be set"
+            ));
         }
 
         let network = collect_optional_environment_variable("MILKMAN_NETWORK")?
-            .unwrap_or("mainnet".to_string());
+            .unwrap_or_else(|| "mainnet".to_string());
         let milkman_address = collect_optional_environment_variable("MILKMAN_ADDRESS")?
-            .unwrap_or(PROD_MILKMAN_ADDRESS.to_string())
+            .as_deref()
+            .unwrap_or(PROD_MILKMAN_ADDRESS)
             .parse()?;
         let polling_frequency_secs =
             collect_optional_environment_variable("POLLING_FREQUENCY_SECS")?
@@ -36,7 +39,8 @@ impl Configuration {
                 .transpose()?
                 .unwrap_or(10);
         let hash_helper_address = collect_optional_environment_variable("HASH_HELPER_ADDRESS")?
-            .unwrap_or(MAINNET_HASH_HELPER_ADDRESS.to_string())
+            .as_deref()
+            .unwrap_or(MAINNET_HASH_HELPER_ADDRESS)
             .parse()?;
 
         let starting_block_number =
@@ -55,10 +59,6 @@ impl Configuration {
             node_base_url,
         })
     }
-}
-
-fn collect_required_environment_variable(key: &str) -> Result<String> {
-    Ok(env::var(key).context(format!("required environment variable {} not set", key))?)
 }
 
 fn collect_optional_environment_variable(key: &str) -> Result<Option<String>> {
