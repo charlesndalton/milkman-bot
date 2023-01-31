@@ -69,7 +69,8 @@ async fn main() {
 
         debug!("range end: {}", range_end);
 
-        let requested_swaps = match eth_client.get_requested_swaps(range_start, range_end).await {
+        // add the - 100 to cast a wider net since Infura sometimes doesn't reply
+        let requested_swaps = match eth_client.get_requested_swaps(range_start - 100, range_end).await {
             Ok(swaps) => swaps,
             Err(err) => {
                 error!("unable to get requested swaps – {:?}", err);
