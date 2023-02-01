@@ -19,12 +19,12 @@ RUN sed -i 's|dummy.rs|src/main.rs|g' Cargo.toml
 COPY . /tmp/milkman-bot
 RUN env CARGO_PROFILE_RELEASE_DEBUG=1 cargo build --release
 
-FROM docker.io/debian:bullseye-slim
+FROM docker.io/debian:stable
 
 COPY --from=cargo-build /tmp/milkman-bot/target/release/milkman-bot /
 COPY --from=cargo-build /tmp/milkman-bot /project/
 WORKDIR /
 
-RUN apt-get update && apt-get install -y libssl-dev ca-certificates
+RUN apt-get update && apt-get install -y libssl-dev git
 
 CMD ["./milkman-bot"]
