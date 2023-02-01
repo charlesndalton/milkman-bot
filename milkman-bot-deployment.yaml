@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: milkman-bot
-        image: charlesdalton/milkman-bot:latest
+        image: ghcr.io/charlesndalton/milkman-bot:main
         env:
             - name: RUST_LOG
               value: "INFO"
