@@ -26,7 +26,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           labels: |
-            org.opencontainers.image.licenses=UNLICENSED
+            org.opencontainers.image.licenses=LGPL-2.0-or-later
       - name: Build
         uses: docker/build-push-action@v2
         with:
