@@ -10,7 +10,7 @@ COPY Cargo.lock /tmp/milkman-bot
 
 ENV CARGO_PROFILE_RELEASE_DEBUG=1
 
-# To cache dependencies, create a layer that compiles dependencies and some rust src that won't change, 
+# To cache dependencies, create a layer that compiles dependencies and some rust src that won't change,
 # and then another layer that compiles our source.
 RUN echo 'fn main() {}' >> /tmp/milkman-bot/dummy.rs
 
@@ -21,12 +21,12 @@ RUN sed -i 's|dummy.rs|src/main.rs|g' Cargo.toml
 COPY . /tmp/milkman-bot
 RUN cargo build --release
 
-FROM docker.io/alpine:3.17
+FROM docker.io/debian:bullseye-slim
 
 COPY --from=cargo-build /tmp/milkman-bot/target/release/milkman-bot /usr/bin/
 WORKDIR /
 
-RUN apk --no-cache add ca-certificates tini
+RUN apt-get update && apt-get install -y ca-certificates tini
 
 ENTRYPOINT ["tini", "--"]
 CMD ["milkman-bot"]
