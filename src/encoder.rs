@@ -4,17 +4,33 @@ use hex::FromHex;
 
 use crate::constants::{APP_DATA, ERC20_BALANCE, KIND_SELL};
 
+#[derive(Debug)]
+pub struct SignatureData<'a> {
+    pub from_token: Address,
+    pub to_token: Address,
+    pub receiver: Address,
+    pub sell_amount_after_fees: U256,
+    pub buy_amount_after_fees_and_slippage: U256,
+    pub valid_to: u64,
+    pub fee_amount: U256,
+    pub order_creator: Address,
+    pub price_checker: Address,
+    pub price_checker_data: &'a Bytes,
+}
+
 pub fn get_eip_1271_signature(
-    from_token: Address,
-    to_token: Address,
-    receiver: Address,
-    sell_amount_after_fees: U256,
-    buy_amount_after_fees_and_slippage: U256,
-    valid_to: u64,
-    fee_amount: U256,
-    order_creator: Address,
-    price_checker: Address,
-    price_checker_data: &Bytes,
+    SignatureData {
+        from_token,
+        to_token,
+        receiver,
+        sell_amount_after_fees,
+        buy_amount_after_fees_and_slippage,
+        valid_to,
+        fee_amount,
+        order_creator,
+        price_checker,
+        price_checker_data,
+    }: SignatureData<'_>,
 ) -> Bytes {
     abi::encode(&vec![
         Token::Address(from_token),
