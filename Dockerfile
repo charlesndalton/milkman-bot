@@ -21,12 +21,12 @@ RUN sed -i 's|dummy.rs|src/main.rs|g' Cargo.toml
 COPY . /tmp/milkman-bot
 RUN cargo build --release
 
-FROM docker.io/debian:bullseye-slim
+FROM docker.io/alpine:3.17
 
 COPY --from=cargo-build /tmp/milkman-bot/target/release/milkman-bot /usr/bin/
 WORKDIR /
 
-RUN apt-get update && apt-get install -y ca-certificates tini
+RUN apk --no-cache add ca-certificates tini
 
 ENTRYPOINT ["tini", "--"]
 CMD ["milkman-bot"]
