@@ -14,6 +14,7 @@ pub struct Configuration {
     pub starting_block_number: Option<u64>,
     pub polling_frequency_secs: u64,
     pub node_base_url: Option<String>,
+    pub slippage_tolerance_bps: u16,
 }
 
 impl Configuration {
@@ -49,6 +50,12 @@ impl Configuration {
                 None => None,
             };
 
+        let slippage_tolerance_bps =
+            match collect_optional_environment_variable("SLIPPAGE_TOLERANCE_BPS")? {
+                Some(block_num) => block_num.parse::<u16>().expect("Unable to parse slippage tolerance factor"),
+                None => 50,
+            };
+
         Ok(Self {
             infura_api_key,
             network,
@@ -57,6 +64,7 @@ impl Configuration {
             starting_block_number,
             polling_frequency_secs,
             node_base_url,
+            slippage_tolerance_bps
         })
     }
 }
