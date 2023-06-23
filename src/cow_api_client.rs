@@ -12,6 +12,7 @@ pub struct Quote {
     pub fee_amount: U256,
     pub buy_amount_after_fee: U256,
     pub valid_to: u64,
+    pub id: u64,
 }
 
 #[derive(Debug)]
@@ -95,11 +96,15 @@ impl CowAPIClient {
         let valid_to = quote["validTo"]
             .as_u64()
             .context("unable to get `validTo` from quote")?;
+        let id = response_body["id"]
+            .as_u64()
+            .context("unable to get `id` from quote")?;
 
         Ok(Quote {
             fee_amount: fee_amount.parse::<u128>()?.into(),
             buy_amount_after_fee: buy_amount_after_fee.parse::<u128>()?.into(),
             valid_to,
+            id
         })
     }
 
@@ -116,6 +121,7 @@ impl CowAPIClient {
             receiver,
             eip_1271_signature,
         }: Order<'_>,
+        quote_id: u64
     ) -> Result<String> {
         let http_client = reqwest::Client::new();
         let response = http_client
@@ -135,7 +141,8 @@ impl CowAPIClient {
                 "from": order_contract,
                 "sellTokenBalance": "erc20",
                 "buyTokenBalance": "erc20",
-                "signingScheme": "eip1271"
+                "signingScheme": "eip1271",
+                "quoteId": quote_id,
             }))
             .send()
             .await?;
