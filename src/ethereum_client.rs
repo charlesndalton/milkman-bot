@@ -150,6 +150,7 @@ impl EthereumClient {
             price_checker_data: &swap_request.price_checker_data,
         });
 
+        debug!("isValidSignature({:?},{:?})", hex::encode(&mock_order_digest), hex::encode(&mock_signature.0));
         debug!(
             "Is valid sig? {:?}",
             order_contract
