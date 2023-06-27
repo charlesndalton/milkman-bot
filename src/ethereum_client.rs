@@ -150,7 +150,11 @@ impl EthereumClient {
             price_checker_data: &swap_request.price_checker_data,
         });
 
-        debug!("isValidSignature({:?},{:?})", hex::encode(&mock_order_digest), hex::encode(&mock_signature.0));
+        debug!(
+            "isValidSignature({:?},{:?})",
+            hex::encode(mock_order_digest),
+            hex::encode(&mock_signature.0)
+        );
         debug!(
             "Is valid sig? {:?}",
             order_contract
@@ -199,6 +203,7 @@ mod tests {
             starting_block_number: None,
             polling_frequency_secs: 15,
             node_base_url: None,
+            slippage_tolerance_bps: 50,
         };
 
         let eth_client = EthereumClient::new(&config).expect("Unable to create Ethereum client");
