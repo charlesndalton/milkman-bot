@@ -26,6 +26,7 @@ pub struct Order<'a> {
     pub fee_amount: U256,
     pub receiver: Address,
     pub eip_1271_signature: &'a Bytes,
+    pub quote_id: u64,
 }
 
 pub struct CowAPIClient {
@@ -104,7 +105,7 @@ impl CowAPIClient {
             fee_amount: fee_amount.parse::<u128>()?.into(),
             buy_amount_after_fee: buy_amount_after_fee.parse::<u128>()?.into(),
             valid_to,
-            id
+            id,
         })
     }
 
@@ -120,8 +121,8 @@ impl CowAPIClient {
             fee_amount,
             receiver,
             eip_1271_signature,
+            quote_id,
         }: Order<'_>,
-        quote_id: u64
     ) -> Result<String> {
         let http_client = reqwest::Client::new();
         let response = http_client
