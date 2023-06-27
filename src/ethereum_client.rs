@@ -152,7 +152,7 @@ impl EthereumClient {
 
         debug!(
             "isValidSignature({:?},{:?})",
-            hex::encode(&mock_order_digest),
+            hex::encode(mock_order_digest),
             hex::encode(&mock_signature.0)
         );
         debug!(
