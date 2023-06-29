@@ -71,7 +71,10 @@ async fn main() {
         debug!("range end: {}", range_end);
 
         // add the - 100 to cast a wider net since Infura sometimes doesn't reply
-        let requested_swaps = match eth_client.get_requested_swaps(range_start - 100, range_end).await {
+        let requested_swaps = match eth_client
+            .get_requested_swaps(range_start - 100, range_end)
+            .await
+        {
             Ok(swaps) => swaps,
             Err(err) => {
                 error!("unable to get requested swaps – {:?}", err);
@@ -151,7 +154,8 @@ async fn main() {
                 };
 
                 let sell_amount_after_fees = requested_swap.amount_in - quote.fee_amount;
-                let buy_amount_after_fees_and_slippage = quote.buy_amount_after_fee * (10000 - config.slippage_tolerance_bps / 10000);
+                let buy_amount_after_fees_and_slippage =
+                    quote.buy_amount_after_fee * (10000 - config.slippage_tolerance_bps) / 10000;
 
                 let eip_1271_signature = encoder::get_eip_1271_signature(SignatureData {
                     from_token: requested_swap.from_token,
