@@ -143,7 +143,7 @@ async fn handle_swap(
         requested_swap.order_contract
     );
     let mut verification_gas_limit = match eth_client
-        .get_estimated_order_contract_gas(&config, requested_swap)
+        .get_estimated_order_contract_gas(config, requested_swap)
         .await
     {
         Ok(res) => res,

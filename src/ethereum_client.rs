@@ -241,7 +241,7 @@ mod tests {
             .await
             .expect("Unable to get requested swaps");
 
-        assert!(requested_swaps.len() > 0);
+        assert!(!requested_swaps.is_empty());
     }
 
     #[test]
