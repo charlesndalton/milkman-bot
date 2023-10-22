@@ -88,3 +88,10 @@ N/A
 *Description*:
 If you want to use something other than Infura. Needs to be JSON-RPC compatible. 
 
+### SLIPPAGE_TOLERANCE_BPS
+
+*Default*:
+50
+
+*Description*:
+The slippage tolerance that is set on the orders the bot places (compared to the quoted amount). Reducing this may make a price checker that is "just" not passing accept the order, however it may make it more difficult for solvers to settle.
