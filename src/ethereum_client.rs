@@ -66,6 +66,7 @@ impl EthereumClient {
             .map(|block_num: U64| block_num.try_into().unwrap()) // U64 -> u64 should always work
     }
 
+    #[allow(dead_code)]
     pub async fn get_chain_timestamp(&self) -> Result<u64> {
         Ok(self.get_latest_block().await?.timestamp.as_u64())
     }
@@ -234,7 +235,7 @@ mod tests {
             .await
             .expect("Unable to get requested swaps");
 
-        assert!(requested_swaps.len() > 0);
+        assert!(!requested_swaps.is_empty());
     }
 
     #[test]

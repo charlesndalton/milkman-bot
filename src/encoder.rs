@@ -4,6 +4,7 @@ use hex::FromHex;
 
 use crate::constants::{APP_DATA, ERC20_BALANCE, KIND_SELL};
 
+#[allow(clippy::too_many_arguments)]
 pub fn get_eip_1271_signature(
     from_token: Address,
     to_token: Address,

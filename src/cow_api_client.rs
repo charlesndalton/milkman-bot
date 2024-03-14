@@ -90,6 +90,7 @@ impl CowAPIClient {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_order(
         &self,
         order_contract: Address,

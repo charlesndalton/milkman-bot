@@ -59,8 +59,9 @@ impl Configuration {
     }
 }
 
+#[allow(dead_code)]
 fn collect_required_environment_variable(key: &str) -> Result<String> {
-    Ok(env::var(key).context(format!("required environment variable {} not set", key))?)
+    env::var(key).context(format!("required environment variable {} not set", key))
 }
 
 fn collect_optional_environment_variable(key: &str) -> Result<Option<String>> {
