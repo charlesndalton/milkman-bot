@@ -46,7 +46,8 @@ impl EthereumClient {
         } else {
             format!(
                 "https://{}.infura.io/v3/{}",
-                config.network, config.infura_api_key.clone().unwrap()
+                config.network,
+                config.infura_api_key.clone().unwrap()
             )
         };
         let provider = Arc::new(Provider::<Http>::try_from(node_url)?);
@@ -161,7 +162,6 @@ impl EthereumClient {
             .estimate_gas()
             .await?)
     }
-
 }
 
 impl From<&SwapRequestedFilter> for Swap {

@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use ethers::types::Address;
 use log::debug;
 use std::env;
@@ -22,7 +22,9 @@ impl Configuration {
         let node_base_url = collect_optional_environment_variable("NODE_BASE_URL")?;
 
         if infura_api_key.is_none() && node_base_url.is_none() {
-            return Err(anyhow!("either `infura_api_key` or `node_base_url` must be set"))
+            return Err(anyhow!(
+                "either `infura_api_key` or `node_base_url` must be set"
+            ));
         }
 
         let network = collect_optional_environment_variable("MILKMAN_NETWORK")?
