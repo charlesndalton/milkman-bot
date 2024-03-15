@@ -6,23 +6,18 @@ use tokio::time::sleep;
 use tracing::Instrument;
 
 mod configuration;
-
 use crate::configuration::Configuration;
 
 mod ethereum_client;
-
 use crate::ethereum_client::EthereumClient;
 
 mod cow_api_client;
-
 use crate::cow_api_client::{CowAPIClient, Order};
 
 mod encoder;
-
 use crate::encoder::SignatureData;
 
 mod types;
-
 use crate::types::Swap;
 
 mod constants;
