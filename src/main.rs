@@ -177,7 +177,7 @@ async fn main() {
                         sell_amount_after_fees,
                         buy_amount_after_fees_and_slippage,
                         quote.valid_to,
-                        quote.fee_amount,
+                        U256::zero(),
                         requested_swap.receiver,
                         &eip_1271_signature,
                     )
