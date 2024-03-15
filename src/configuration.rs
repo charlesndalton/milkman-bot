@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Result};
 use ethers::types::Address;
 use log::debug;
 use std::env;
@@ -14,6 +14,7 @@ pub struct Configuration {
     pub starting_block_number: Option<u64>,
     pub polling_frequency_secs: u64,
     pub node_base_url: Option<String>,
+    pub slippage_tolerance_bps: u16,
 }
 
 impl Configuration {
@@ -22,13 +23,16 @@ impl Configuration {
         let node_base_url = collect_optional_environment_variable("NODE_BASE_URL")?;
 
         if infura_api_key.is_none() && node_base_url.is_none() {
-            return Err(anyhow!("either `infura_api_key` or `node_base_url` must be set"))
+            return Err(anyhow!(
+                "either `infura_api_key` or `node_base_url` must be set"
+            ));
         }
 
         let network = collect_optional_environment_variable("MILKMAN_NETWORK")?
-            .unwrap_or("mainnet".to_string());
+            .unwrap_or_else(|| "mainnet".to_string());
         let milkman_address = collect_optional_environment_variable("MILKMAN_ADDRESS")?
-            .unwrap_or(PROD_MILKMAN_ADDRESS.to_string())
+            .as_deref()
+            .unwrap_or(PROD_MILKMAN_ADDRESS)
             .parse()?;
         let polling_frequency_secs =
             collect_optional_environment_variable("POLLING_FREQUENCY_SECS")?
@@ -36,13 +40,20 @@ impl Configuration {
                 .transpose()?
                 .unwrap_or(10);
         let hash_helper_address = collect_optional_environment_variable("HASH_HELPER_ADDRESS")?
-            .unwrap_or(MAINNET_HASH_HELPER_ADDRESS.to_string())
+            .as_deref()
+            .unwrap_or(MAINNET_HASH_HELPER_ADDRESS)
             .parse()?;
 
         let starting_block_number =
             match collect_optional_environment_variable("STARTING_BLOCK_NUMBER")? {
                 Some(block_num) => block_num.parse::<u64>().ok(),
                 None => None,
+            };
+
+        let slippage_tolerance_bps =
+            match collect_optional_environment_variable("SLIPPAGE_TOLERANCE_BPS")? {
+                Some(block_num) => block_num.parse::<u16>().expect("Unable to parse slippage tolerance factor"),
+                None => 50,
             };
 
         Ok(Self {
@@ -53,12 +64,9 @@ impl Configuration {
             starting_block_number,
             polling_frequency_secs,
             node_base_url,
+            slippage_tolerance_bps
         })
     }
-}
-
-fn collect_required_environment_variable(key: &str) -> Result<String> {
-    Ok(env::var(key).context(format!("required environment variable {} not set", key))?)
 }
 
 fn collect_optional_environment_variable(key: &str) -> Result<Option<String>> {

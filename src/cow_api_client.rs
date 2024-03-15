@@ -1,5 +1,5 @@
 use crate::configuration::Configuration;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use ethers::abi::Address;
 use ethers::types::{Bytes, U256};
 use log::{debug, info};
@@ -12,6 +12,21 @@ pub struct Quote {
     pub fee_amount: U256,
     pub buy_amount_after_fee: U256,
     pub valid_to: u64,
+    pub id: u64,
+}
+
+#[derive(Debug)]
+pub struct Order<'a> {
+    pub order_contract: Address,
+    pub sell_token: Address,
+    pub buy_token: Address,
+    pub sell_amount: U256,
+    pub buy_amount: U256,
+    pub valid_to: u64,
+    pub fee_amount: U256,
+    pub receiver: Address,
+    pub eip_1271_signature: &'a Bytes,
+    pub quote_id: u64,
 }
 
 pub struct CowAPIClient {
@@ -73,34 +88,41 @@ impl CowAPIClient {
         let quote = &response_body["quote"];
         let fee_amount = quote["feeAmount"]
             .as_str()
-            .ok_or(anyhow!("unable to get `feeAmount` on quote"))?
+            .context("unable to get `feeAmount` on quote")?
             .to_owned();
         let buy_amount_after_fee = quote["buyAmount"]
             .as_str()
-            .ok_or(anyhow!("unable to get `buyAmountAfterFee` from quote"))?
+            .context("unable to get `buyAmountAfterFee` from quote")?
             .to_owned();
         let valid_to = quote["validTo"]
             .as_u64()
-            .ok_or(anyhow!("unable to get `validTo` from quote"))?;
+            .context("unable to get `validTo` from quote")?;
+        let id = response_body["id"]
+            .as_u64()
+            .context("unable to get `id` from quote")?;
 
         Ok(Quote {
             fee_amount: fee_amount.parse::<u128>()?.into(),
             buy_amount_after_fee: buy_amount_after_fee.parse::<u128>()?.into(),
             valid_to,
+            id,
         })
     }
 
     pub async fn create_order(
         &self,
-        order_contract: Address,
-        sell_token: Address,
-        buy_token: Address,
-        sell_amount: U256,
-        buy_amount: U256,
-        valid_to: u64,
-        fee_amount: U256,
-        receiver: Address,
-        eip_1271_signature: &Bytes,
+        Order {
+            order_contract,
+            sell_token,
+            buy_token,
+            sell_amount,
+            buy_amount,
+            valid_to,
+            fee_amount,
+            receiver,
+            eip_1271_signature,
+            quote_id,
+        }: Order<'_>,
     ) -> Result<String> {
         let http_client = reqwest::Client::new();
         let response = http_client
@@ -120,7 +142,8 @@ impl CowAPIClient {
                 "from": order_contract,
                 "sellTokenBalance": "erc20",
                 "buyTokenBalance": "erc20",
-                "signingScheme": "eip1271"
+                "signingScheme": "eip1271",
+                "quoteId": quote_id,
             }))
             .send()
             .await?;
@@ -130,7 +153,7 @@ impl CowAPIClient {
                 .json::<Value>()
                 .await?
                 .as_str()
-                .ok_or(anyhow!("Unable to retrieve UID from POST order response"))?
+                .context("Unable to retrieve UID from POST order response")?
                 .to_string(),
             Err(err) => {
                 debug!("POST order failed with body: {:?}", response.text().await?);

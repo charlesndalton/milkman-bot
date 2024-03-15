@@ -1,22 +1,28 @@
-use anyhow::Result;
+use anyhow::{bail, Context, Result};
 use ethers::prelude::*;
 use hex::ToHex;
-use log::{debug, error, info};
 use std::{collections::HashMap, time::Duration};
 use tokio::time::sleep;
+use tracing::Instrument;
 
 mod configuration;
+
 use crate::configuration::Configuration;
 
 mod ethereum_client;
+
 use crate::ethereum_client::EthereumClient;
 
 mod cow_api_client;
-use crate::cow_api_client::CowAPIClient;
+
+use crate::cow_api_client::{CowAPIClient, Order};
 
 mod encoder;
 
+use crate::encoder::SignatureData;
+
 mod types;
+
 use crate::types::Swap;
 
 mod constants;
@@ -32,9 +38,8 @@ mod constants;
 /// marginal cloud compute cost to CoW is likely to be very small.
 #[tokio::main]
 async fn main() {
-    env_logger::init();
-
-    info!("=== MILKMAN BOT STARTING ===");
+    tracing_subscriber::fmt::init();
+    tracing::info!("=== MILKMAN BOT STARTING ===");
 
     let config = Configuration::get_from_environment()
         .expect("Unable to get configuration from the environment variables."); // .expect() because every decision to panic should be conscious, not just triggered by a `?` that we didn't think about
@@ -56,7 +61,7 @@ async fn main() {
             .expect("Unable to get latest block number before starting."),
     );
 
-    debug!("range start: {}", range_start);
+    tracing::debug!("range start: {}", range_start);
 
     let mut swap_queue = HashMap::new();
 
@@ -68,19 +73,22 @@ async fn main() {
             .await
             .expect("Unable to get latest block number."); // should we panic here if we can't get it? another option would be continuing in the loop, but then we might not observe that the bot is really `down`
 
-        debug!("range end: {}", range_end);
+        tracing::debug!("range end: {}", range_end);
 
         // add the - 100 to cast a wider net since Infura sometimes doesn't reply
-        let requested_swaps = match eth_client.get_requested_swaps(range_start - 100, range_end).await {
+        let requested_swaps = match eth_client
+            .get_requested_swaps(range_start - 100, range_end)
+            .await
+        {
             Ok(swaps) => swaps,
             Err(err) => {
-                error!("unable to get requested swaps – {:?}", err);
+                tracing::error!("unable to get requested swaps – {:?}", err);
                 continue;
             }
         };
 
-        if requested_swaps.len() > 0 {
-            info!(
+        if !requested_swaps.is_empty() {
+            tracing::info!(
                 "Found {} requested swaps between blocks {} and {}",
                 requested_swaps.len(),
                 range_start,
@@ -89,8 +97,8 @@ async fn main() {
         }
 
         for requested_swap in requested_swaps {
-            info!("Inserting following swap in queue: {:?}", requested_swap);
-            debug!(
+            tracing::info!("Inserting following swap in queue: {:?}", requested_swap);
+            tracing::debug!(
                 "Price checker data hex: 0x{}",
                 requested_swap.price_checker_data.encode_hex::<String>()
             );
@@ -101,94 +109,110 @@ async fn main() {
             let is_swap_fulfilled = match is_swap_fulfilled(requested_swap, &eth_client).await {
                 Ok(res) => res,
                 Err(err) => {
-                    error!("unable to determine if swap was fulfilled – {:?}", err);
+                    tracing::error!("unable to determine if swap was fulfilled – {:?}", err);
                     continue;
                 }
             };
 
             if is_swap_fulfilled {
-                info!(
+                tracing::info!(
                     "Swap with order contract ({}) was fulfilled, removing from queue.",
                     requested_swap.order_contract
                 );
                 swap_queue.remove(&requested_swap.order_contract);
             } else {
-                info!(
-                    "Handling swap with order contract ({})",
-                    requested_swap.order_contract
-                );
-                let mut verification_gas_limit = match eth_client
-                    .get_estimated_order_contract_gas(&config, requested_swap)
-                    .await
-                {
-                    Ok(res) => res,
-                    Err(err) => {
-                        error!("unable to estimate verification gas – {:?}", err);
-                        continue;
+                let contract = format!("{:#x}", requested_swap.order_contract);
+                async {
+                    if let Err(err) =
+                        handle_swap(requested_swap, &eth_client, &cow_api_client, &config).await
+                    {
+                        tracing::error!("unable to handle swap {:?}", err);
                     }
-                };
-                verification_gas_limit = (verification_gas_limit * 11) / 10; // extra padding
-                debug!(
-                    "verification gas limit to use - {:?}",
-                    verification_gas_limit
-                );
-
-                let quote = match cow_api_client
-                    .get_quote(
-                        requested_swap.order_contract,
-                        requested_swap.from_token,
-                        requested_swap.to_token,
-                        requested_swap.amount_in,
-                        verification_gas_limit.as_u64(),
-                    )
-                    .await
-                {
-                    Ok(res) => res,
-                    Err(err) => {
-                        error!("unable to fetch quote - {:?}", err);
-                        continue;
-                    }
-                };
-
-                let sell_amount_after_fees = requested_swap.amount_in;
-                let buy_amount_after_fees_and_slippage = quote.buy_amount_after_fee * 995 / 1000;
-
-                let eip_1271_signature = encoder::get_eip_1271_signature(
-                    requested_swap.from_token,
-                    requested_swap.to_token,
-                    requested_swap.receiver,
-                    sell_amount_after_fees,
-                    buy_amount_after_fees_and_slippage,
-                    quote.valid_to,
-                    U256::zero(),
-                    requested_swap.order_creator,
-                    requested_swap.price_checker,
-                    &requested_swap.price_checker_data,
-                );
-
-
-                match cow_api_client
-                    .create_order(
-                        requested_swap.order_contract,
-                        requested_swap.from_token,
-                        requested_swap.to_token,
-                        sell_amount_after_fees,
-                        buy_amount_after_fees_and_slippage,
-                        quote.valid_to,
-                        U256::zero(),
-                        requested_swap.receiver,
-                        &eip_1271_signature,
-                    )
-                    .await
-                {
-                    Ok(_) => (),
-                    Err(err) => error!("unable to create order via CoW API – {:?}", err),
-                };
+                }
+                .instrument(tracing::info_span!("handle_swap", contract))
+                .await
             }
         }
 
         range_start = range_end;
     }
+}
+
+async fn handle_swap(
+    requested_swap: &Swap,
+    eth_client: &EthereumClient,
+    cow_api_client: &CowAPIClient,
+    config: &Configuration,
+) -> Result<()> {
+    tracing::info!(
+        "Handling swap with order contract ({})",
+        requested_swap.order_contract
+    );
+    let mut verification_gas_limit = match eth_client
+        .get_estimated_order_contract_gas(config, requested_swap)
+        .await
+    {
+        Ok(res) => res,
+        Err(err) => {
+            bail!("unable to estimate verification gas – {:?}", err);
+        }
+    };
+    verification_gas_limit = (verification_gas_limit * 11) / 10; // extra padding
+    tracing::debug!(
+        "verification gas limit to use - {:?}",
+        verification_gas_limit
+    );
+
+    let quote = match cow_api_client
+        .get_quote(
+            requested_swap.order_contract,
+            requested_swap.from_token,
+            requested_swap.to_token,
+            requested_swap.amount_in,
+            verification_gas_limit.as_u64(),
+        )
+        .await
+    {
+        Ok(res) => res,
+        Err(err) => {
+            bail!("unable to fetch quote - {:?}", err);
+        }
+    };
+
+    let sell_amount_after_fees = requested_swap.amount_in;
+    let buy_amount_after_fees_and_slippage =
+        quote.buy_amount_after_fee * (10000 - config.slippage_tolerance_bps) / 10000;
+
+    let eip_1271_signature = encoder::get_eip_1271_signature(SignatureData {
+        from_token: requested_swap.from_token,
+        to_token: requested_swap.to_token,
+        receiver: requested_swap.receiver,
+        sell_amount_after_fees,
+        buy_amount_after_fees_and_slippage,
+        valid_to: quote.valid_to,
+        fee_amount: U256::zero(),
+        order_creator: requested_swap.order_creator,
+        price_checker: requested_swap.price_checker,
+        price_checker_data: &requested_swap.price_checker_data,
+    });
+    tracing::debug!(signature = ?eip_1271_signature.to_string());
+
+    cow_api_client
+        .create_order(Order {
+            order_contract: requested_swap.order_contract,
+            sell_token: requested_swap.from_token,
+            buy_token: requested_swap.to_token,
+            sell_amount: sell_amount_after_fees,
+            buy_amount: buy_amount_after_fees_and_slippage,
+            valid_to: quote.valid_to,
+            fee_amount: U256::zero(),
+            receiver: requested_swap.receiver,
+            eip_1271_signature: &eip_1271_signature,
+            quote_id: quote.id,
+        })
+        .await
+        .context("unable to create order via CoW API")?;
+    Ok(())
 }
 
 async fn is_swap_fulfilled(swap: &Swap, eth_client: &EthereumClient) -> Result<bool> {

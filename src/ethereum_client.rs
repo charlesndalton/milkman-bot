@@ -1,5 +1,4 @@
-use crate::types::{BlockNumber, Swap};
-use anyhow::{anyhow, Result};
+use anyhow::{Context, Result};
 use ethers::prelude::*;
 use hex::FromHex;
 use log::debug;
@@ -10,7 +9,8 @@ use std::sync::Arc;
 
 use crate::configuration::Configuration;
 use crate::constants::{APP_DATA, ERC20_BALANCE, KIND_SELL};
-use crate::encoder;
+use crate::encoder::{self, SignatureData};
+use crate::types::{BlockNumber, Swap};
 
 abigen!(
     RawMilkman,
@@ -46,7 +46,8 @@ impl EthereumClient {
         } else {
             format!(
                 "https://{}.infura.io/v3/{}",
-                config.network, config.infura_api_key.clone().unwrap()
+                config.network,
+                config.infura_api_key.clone().unwrap()
             )
         };
         let provider = Arc::new(Provider::<Http>::try_from(node_url)?);
@@ -61,10 +62,11 @@ impl EthereumClient {
         self.get_latest_block()
             .await?
             .number
-            .ok_or(anyhow!("Error extracting number from latest block."))
+            .context("Error extracting number from latest block.")
             .map(|block_num: U64| block_num.try_into().unwrap()) // U64 -> u64 should always work
     }
 
+    #[cfg(test)]
     pub async fn get_chain_timestamp(&self) -> Result<u64> {
         Ok(self.get_latest_block().await?.timestamp.as_u64())
     }
@@ -73,7 +75,7 @@ impl EthereumClient {
         self.inner_client
             .get_block(ethers::core::types::BlockNumber::Latest)
             .await?
-            .ok_or(anyhow!("Error fetching latest block."))
+            .context("Error fetching latest block.")
     }
 
     pub async fn get_requested_swaps(
@@ -135,19 +137,24 @@ impl EthereumClient {
             .call()
             .await?;
 
-        let mock_signature = encoder::get_eip_1271_signature(
-            swap_request.from_token,
-            swap_request.to_token,
-            swap_request.receiver,
-            swap_request.amount_in,
-            U256::MAX,
-            u32::MAX as u64,
-            U256::zero(),
-            swap_request.order_creator,
-            swap_request.price_checker,
-            &swap_request.price_checker_data,
-        );
+        let mock_signature = encoder::get_eip_1271_signature(SignatureData {
+            from_token: swap_request.from_token,
+            to_token: swap_request.to_token,
+            receiver: swap_request.receiver,
+            sell_amount_after_fees: swap_request.amount_in,
+            buy_amount_after_fees_and_slippage: U256::MAX,
+            valid_to: u32::MAX as u64,
+            fee_amount: U256::zero(),
+            order_creator: swap_request.order_creator,
+            price_checker: swap_request.price_checker,
+            price_checker_data: &swap_request.price_checker_data,
+        });
 
+        debug!(
+            "isValidSignature({:?},{:?})",
+            hex::encode(mock_order_digest),
+            hex::encode(&mock_signature.0)
+        );
         debug!(
             "Is valid sig? {:?}",
             order_contract
@@ -161,7 +168,6 @@ impl EthereumClient {
             .estimate_gas()
             .await?)
     }
-
 }
 
 impl From<&SwapRequestedFilter> for Swap {
@@ -197,6 +203,7 @@ mod tests {
             starting_block_number: None,
             polling_frequency_secs: 15,
             node_base_url: None,
+            slippage_tolerance_bps: 50,
         };
 
         let eth_client = EthereumClient::new(&config).expect("Unable to create Ethereum client");
@@ -234,7 +241,7 @@ mod tests {
             .await
             .expect("Unable to get requested swaps");
 
-        assert!(requested_swaps.len() > 0);
+        assert!(!requested_swaps.is_empty());
     }
 
     #[test]
