@@ -1,4 +1,5 @@
 use anyhow::{bail, Context, Result};
+use ethers::prelude::*;
 use hex::ToHex;
 use std::{collections::HashMap, time::Duration};
 use tokio::time::sleep;
@@ -173,7 +174,7 @@ async fn handle_swap(
         }
     };
 
-    let sell_amount_after_fees = requested_swap.amount_in - quote.fee_amount;
+    let sell_amount_after_fees = requested_swap.amount_in;
     let buy_amount_after_fees_and_slippage =
         quote.buy_amount_after_fee * (10000 - config.slippage_tolerance_bps) / 10000;
 
@@ -184,7 +185,7 @@ async fn handle_swap(
         sell_amount_after_fees,
         buy_amount_after_fees_and_slippage,
         valid_to: quote.valid_to,
-        fee_amount: quote.fee_amount,
+        fee_amount: U256::zero(),
         order_creator: requested_swap.order_creator,
         price_checker: requested_swap.price_checker,
         price_checker_data: &requested_swap.price_checker_data,
@@ -199,7 +200,7 @@ async fn handle_swap(
             sell_amount: sell_amount_after_fees,
             buy_amount: buy_amount_after_fees_and_slippage,
             valid_to: quote.valid_to,
-            fee_amount: quote.fee_amount,
+            fee_amount: U256::zero(),
             receiver: requested_swap.receiver,
             eip_1271_signature: &eip_1271_signature,
             quote_id: quote.id,
