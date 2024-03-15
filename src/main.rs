@@ -82,7 +82,7 @@ async fn main() {
             }
         };
 
-        if !requested_swaps.is_empty() {
+        if requested_swaps.len() > 0 {
             info!(
                 "Found {} requested swaps between blocks {} and {}",
                 requested_swaps.len(),
