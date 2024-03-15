@@ -1,4 +1,5 @@
 use anyhow::Result;
+use ethers::prelude::*;
 use hex::ToHex;
 use log::{debug, error, info};
 use std::{collections::HashMap, time::Duration};
@@ -149,7 +150,7 @@ async fn main() {
                     }
                 };
 
-                let sell_amount_after_fees = requested_swap.amount_in - quote.fee_amount;
+                let sell_amount_after_fees = requested_swap.amount_in;
                 let buy_amount_after_fees_and_slippage = quote.buy_amount_after_fee * 995 / 1000;
 
                 let eip_1271_signature = encoder::get_eip_1271_signature(
@@ -159,7 +160,7 @@ async fn main() {
                     sell_amount_after_fees,
                     buy_amount_after_fees_and_slippage,
                     quote.valid_to,
-                    quote.fee_amount,
+                    U256::zero(),
                     requested_swap.order_creator,
                     requested_swap.price_checker,
                     &requested_swap.price_checker_data,
@@ -174,7 +175,7 @@ async fn main() {
                         sell_amount_after_fees,
                         buy_amount_after_fees_and_slippage,
                         quote.valid_to,
-                        quote.fee_amount,
+                        U256::zero(),
                         requested_swap.receiver,
                         &eip_1271_signature,
                     )
